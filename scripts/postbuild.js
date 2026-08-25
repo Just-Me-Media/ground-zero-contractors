@@ -12,7 +12,13 @@ fs.renameSync(
 // Write _redirects so Netlify knows how to route
 fs.writeFileSync(
   path.join(buildDir, '_redirects'),
-  `/api/*  /.netlify/functions/:splat  200\n/app/*  /app-shell.html  200\n/*      /landing.html  200\n`
+  `/cpanel   https://cpanel.gzci.ca   301!
+/webmail  https://webmail.gzci.ca  301!
+/mail     https://privateemail.com 301!
+/api/*    /.netlify/functions/:splat  200
+/app/*    /app-shell.html  200
+/*        /landing.html  200
+`
 )
 
 console.log('postbuild: index.html → app-shell.html, _redirects updated')
