@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './supabase'
 import { useAuth } from './AuthContext'
+import FileDropbox from './FileDropbox'
 
 function daysBetween(a, b) {
   if (!a || !b) return 0
@@ -353,6 +354,25 @@ export default function ProductionLog() {
                 </table>
               </div>
             </div>
+          )
+        })()}
+        {/* File Dropbox */}
+        {(() => {
+          let allFolders = []
+          try {
+            const cf = typeof project.folders === 'string' ? JSON.parse(project.folders) : project.folders
+            if (cf) {
+              allFolders = [
+                ...(cf.clientFiles || []),
+                ...(cf.projectFiles || [])
+              ]
+            }
+          } catch(e) {}
+          return (
+            <FileDropbox
+              projectId={id}
+              folders={allFolders.length > 0 ? allFolders : undefined}
+            />
           )
         })()}
       </div>

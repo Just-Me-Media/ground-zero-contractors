@@ -3,7 +3,7 @@
 ## 1. Live Website
 
 **Public URL:** https://transcendent-swan-230515.netlify.app  
-**Custom Domain:** gzci.ca *(not yet live — DNS paused until invoice paid)*
+**Custom Domain:** gzci.ca *(pending DNS — point Namecheap CNAME to Netlify after invoice settled)*
 
 The site has two parts:
 - **Landing page** (gzci.ca) — public brochure, services, contact
@@ -64,19 +64,21 @@ Only **Peter** and **Hanna** see the **Remove** button. Click it to delete an en
 If you need to access the database directly (e.g., to export data or add users):
 
 1. Go to https://supabase.com/dashboard/project/hvxxcqddqdtbllzrzeqf
-2. Login: **admin@gzci.ca** / **PeterSabota#69**
+2. Login: **peter@gzci.ca** (Supabase project owner — transferred from admin account)
 
 Here you can:
 - Browse the **projects** and **production_entries** tables
 - Manually add/remove auth users (under **Authentication → Users**)
 - View/edit data with the Table Editor
 
+> **IT Admin:** William Commu (william@justmemedia.ca) has member-level access to the Supabase project.
+
 ---
 
 ## 8. Accessing Netlify
 
 1. Go to https://app.netlify.com
-2. Login: **admin@gzci.ca** / **PeterSabota#69**
+2. Login: **peter@gzci.ca** (William logs in directly using Peter's credentials — no paid team member needed)
 3. Find the site "transcendent-swan-230515"
 4. Here you can: view deploy logs, set environment variables, configure custom domain
 
@@ -84,9 +86,11 @@ Here you can:
 
 ## 9. Accessing GitHub
 
-1. Go to https://github.com/GroundZeroCI/ground-zero-contractors
-2. Login: **admin@gzci.ca** / **PeterSabota#69**
+1. Go to https://github.com/Lexsort-Core/ground-zero-contractors
+2. Peter Sabota is added as a collaborator on the repo.
 3. The source code is here. Pushing to `main` triggers an automatic deploy to Netlify.
+
+> **Repo Owner:** William Commu via Lexsort-Core org (IT admin).
 
 ---
 
@@ -94,7 +98,6 @@ Here you can:
 
 | Role | Create Projects | Log Production | Delete Entries | See Client Passwords | See All Projects |
 |------|:-:|:-:|:-:|:-:|:-:|
-| **admin** (admin@gzci.ca) | Yes | Yes | Yes | Yes | Yes |
 | **full** (Peter, Hanna) | Yes | Yes | Yes | Yes | Yes |
 | **limited** (Mike) | Yes | Yes | No | Yes | Yes |
 | **client** | No | Yes (own project) | No | No | Own project only |
@@ -103,11 +106,19 @@ Here you can:
 
 ## 11. Pending Items
 
-- [ ] **Pay invoice** from JustMeMedia to unlock full handover
+> **Note:** William handles all account setup on Peter's behalf using access to the gzci.ca email portal. Peter does not need IT knowledge — William does it for him.
+
+- [ ] **Pay invoice GZCI-001** — $500.00 CAD to JustMeMedia (e-transfer: wcommu@justmemedia.ca)
+- [ ] **Create Peter's Netlify account** — William signs up at netlify.com using `peter@gzci.ca`, confirms via gzci.ca webmail
+- [ ] **Transfer Netlify site** — From William's personal Netlify → transfer to `peter@gzci.ca` account; then add `william@justmemedia.ca` as team member
+- [ ] **Transfer Supabase project** — Settings → General → Transfer ownership to `peter@gzci.ca`; confirm via gzci.ca webmail; add William as member
 - [ ] **Point DNS** at Namecheap: set `www.gzci.ca` CNAME → `transcendent-swan-230515.netlify.app`
-- [ ] **Transfer Netlify site** to admin@gzci.ca (currently under William's personal Netlify account)
-- [ ] **Distribute logins** to Hanna and Mike (they each get PeterSabota)
+- [ ] **Remove orphaned `admin@gzci.ca` app user** from Supabase Auth → Authentication → Users (account deleted, entry is stale)
+- [ ] **Add Peter as GitHub collaborator** on `Lexsort-Core/ground-zero-contractors` (optional — he doesn't need code access)
+- [ ] **Distribute logins** to Hanna and Mike (password: PeterSabota)
+- [ ] **File Dropbox module** — build & deploy drag-and-drop upload portal (included in GZCI-001)
 
 ---
 
-*For questions, contact William Commu — JustMeMedia*
+*For questions, contact William Commu — JustMeMedia*  
+📧 wcommu@justmemedia.ca · 📞 647-554-0219
