@@ -79,18 +79,15 @@ Here you can:
 
 1. Go to https://app.netlify.com
 2. Login: **peter@gzci.ca** (William logs in directly using Peter's credentials — no paid team member needed)
-3. Find the site "transcendent-swan-230515"
+3. Find the site "darling-biscotti-0fe7b6" (or gzci.ca)
 4. Here you can: view deploy logs, set environment variables, configure custom domain
 
 ---
 
 ## 9. Accessing GitHub
 
-1. Go to https://github.com/Lexsort-Core/ground-zero-contractors
-2. Peter Sabota is added as a collaborator on the repo.
-3. The source code is here. Pushing to `main` triggers an automatic deploy to Netlify.
-
-> **Repo Owner:** William Commu via Lexsort-Core org (IT admin).
+1. Go to https://github.com/Just-Me-Media/ground-zero-contractors
+2. The source code is here. Pushing to `main` triggers an automatic deploy to Netlify.
 
 ---
 
