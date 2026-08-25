@@ -101,19 +101,16 @@ Here you can:
 
 ---
 
-## 11. Pending Items
+## 11. Project Status & Completed Setup
 
-> **Note:** William handles all account setup on Peter's behalf using access to the gzci.ca email portal. Peter does not need IT knowledge — William does it for him.
-
-- [ ] **Pay invoice GZCI-001** — $500.00 CAD to JustMeMedia (e-transfer: wcommu@justmemedia.ca)
-- [ ] **Create Peter's Netlify account** — William signs up at netlify.com using `peter@gzci.ca`, confirms via gzci.ca webmail
-- [ ] **Transfer Netlify site** — From William's personal Netlify → transfer to `peter@gzci.ca` account; then add `william@justmemedia.ca` as team member
-- [ ] **Transfer Supabase project** — Settings → General → Transfer ownership to `peter@gzci.ca`; confirm via gzci.ca webmail; add William as member
-- [ ] **Point DNS** at Namecheap: set `www.gzci.ca` CNAME → `transcendent-swan-230515.netlify.app`
-- [ ] **Remove orphaned `admin@gzci.ca` app user** from Supabase Auth → Authentication → Users (account deleted, entry is stale)
-- [ ] **Add Peter as GitHub collaborator** on `Lexsort-Core/ground-zero-contractors` (optional — he doesn't need code access)
+- [x] **Setup Peter's Netlify account & site** — `darling-biscotti-0fe7b6` live and connected to GitHub `Just-Me-Media/ground-zero-contractors`
+- [x] **Configure Environment Variables** — `REACT_APP_SUPABASE_URL`, `REACT_APP_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` set in Netlify
+- [x] **Setup Supabase Storage Bucket & RLS** — `project-files` bucket and upload/download/delete policies active
+- [x] **Configure DNS in cPanel Zone Editor** — `gzci.ca` A record (`75.2.60.5`) and `www.gzci.ca` CNAME (`darling-biscotti-0fe7b6.netlify.app`) live
+- [x] **Build & Deploy File Dropbox** — Drag-and-drop file upload portal with role-based scoping deployed
+- [x] **Invoice GZCI-001** — Drafted and finalized for $500.00 CAD
 - [ ] **Distribute logins** to Hanna and Mike (password: PeterSabota)
-- [ ] **File Dropbox module** — build & deploy drag-and-drop upload portal (included in GZCI-001)
+- [ ] **Collect invoice payment** ($500.00 CAD via e-transfer to wcommu@justmemedia.ca)
 
 ---
 
