@@ -1,10 +1,10 @@
-# Invoice — GZCI-001
+# Invoice — GZCI-002
 
 **From:** Just Me Media — William (Bill) Commu  
 **To:** Ground Zero Contractors Inc. — Peter Sabota  
 **Invoice Date:** August 25, 2026  
-**Invoice #:** GZCI-001  
-**Quote Reference:** Original estimate April 2026
+**Invoice #:** GZCI-002  
+**Reference:** Website Launch, DNS Integration & File Dropbox Portal (Phase 2)
 
 ---
 
@@ -12,14 +12,13 @@
 
 | # | Description | Hrs | Rate | Amount |
 |---|-------------|:---:|-----:|-------:|
-| 1 | **Custom Responsive Website** — Full public-facing company site for Ground Zero Contractors Inc., including Services, About, and Contact sections. Mobile-friendly, hosted on Netlify. | 4 | — | incl. |
-| 2 | **Staff & Client Dashboard** — Secure login portal at `/app/login` with role-based access (Peter / Hanna / Mike / Clients). Each role restricted to their appropriate permissions. | 5 | — | incl. |
-| 3 | **Project Management Module** — 4-step new project wizard: Project Info, Contacts (with auto-created client logins), Folder structure templates, Review & confirm. | 5 | — | incl. |
-| 4 | **Production Log** — Per-project daily quantity logging, date-stamped entries, remove capability for authorized users. Client passwords visible to staff only. | 3 | — | incl. |
-| 5 | **File & Document Upload Portal (Dropbox)** — Drag-and-drop file uploader for photos, PDFs, invoices, daily notes, and site documents. Scoped per-project, per-role. Powered by Supabase Storage with Row Level Security. Employees and clients can upload; Peter has full view/delete access. | 4 | — | incl. |
-| 6 | **Database & Backend Setup** — Supabase project provisioning, auth configuration, Row Level Security policies, environment variables, and Netlify integration. | 2 | — | incl. |
-| 7 | **Domain & DNS Setup Guidance** — Custom domain `gzci.ca` via Namecheap, Netlify custom domain configuration, account ownership transfer to `peter@gzci.ca`. | 1 | — | incl. |
-| 8 | **Account Setup & Handover** — GitHub repo, Netlify, Supabase set up and documented. Full written handover with credentials, login instructions, and role guide. | 1 | — | incl. |
+| 1 | **Custom Responsive Website & Live Launch** — Production launch of `gzci.ca` on Netlify Edge, mobile optimization, and SSL encryption setup. | — | — | incl. |
+| 2 | **Staff & Client Operations Portal** — `/app/login` with role-based access control (Peter, Hanna, Mike, Clients) and multi-account permissions. | — | — | incl. |
+| 3 | **Project Management & Production Logs** — 4-step project creation wizard, client auto-login generation, daily quantity tracking, and schedule pacing calculators. | — | — | incl. |
+| 4 | **Secure File Dropbox Module** — Full drag-and-drop file upload portal for photos, PDFs, daily notes, and invoices. Scoped per-project with in-browser preview and role-based delete protection. | — | — | incl. |
+| 5 | **Database & Cloud Storage Infrastructure** — Supabase backend provisioning, `project-files` storage bucket, RLS security policies, and environment integration. | — | — | incl. |
+| 6 | **DNS & Domain Infrastructure** — Namecheap cPanel Zone Editor configuration (`gzci.ca` + `www`), preserving existing Stellar email hosting. | — | — | incl. |
+| 7 | **Team User Guide & System Handover** — Documentation, credential directory, and step-by-step user guide for Peter, Hanna, and Mike. | — | — | incl. |
 
 ---
 
@@ -36,15 +35,14 @@
 ## Payment Details
 
 **Accepted Methods:**
-- **E-Transfer:** wcommu@justmemedia.ca *(preferred — no fees)*
-- **Credit Card via Stripe:** *(link available on request)*
+- **Interac E-Transfer:** `wcommu@justmemedia.ca` *(Automatic deposit)*
+- **Credit Card via Stripe:** *(Link available on request)*
 
-**Terms:** Due upon receipt. This invoice covers all work scoped in the original April 2026 estimate.  
-Future features (additional modules, design changes, new integrations) will be invoiced separately.
+**Terms:** Due upon receipt. Covers all Phase 2 development, file dropbox integration, launch, and handover.
 
 ---
 
-*Thank you for the work, Pete — it was a pleasure building this for the team!*
+*Thank you for the continued business, Pete — it was a pleasure building this platform for Ground Zero!*
 
 **William (Bill) Commu**  
 Just Me Media  
