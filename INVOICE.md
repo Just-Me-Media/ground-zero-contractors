@@ -1,7 +1,7 @@
 # Invoice — GZCI-002
 
 **From:** Just Me Media — William (Bill) Commu  
-**To:** Ground Zero Contractors Inc. — Peter Sabota  
+**To:** Ground Zero Contractors Inc. — Peter Sobota  
 **Invoice Date:** August 25, 2026  
 **Invoice #:** GZCI-002  
 **Reference:** Website Launch, DNS Integration & File Dropbox Portal (Phase 2)

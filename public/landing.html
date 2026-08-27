@@ -3,125 +3,222 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ground Zero Contractors Inc. — Heavy Civil, Demolition & Remediation</title>
-  <meta name="description" content="Ground Zero Contractors Inc. delivers heavy civil construction, environmental remediation, bulk earthmoving, and site development across Ontario." />
+  <title>Ground Zero Contractors Inc. — Heavy Civil, Demolition &amp; Remediation</title>
+  <meta name="description" content="Ground Zero Contractors Inc. delivers professional heavy civil construction, environmental remediation, bulk earthmoving, and site development across Ontario." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg-page: #ffffff;
+      --bg-subtle: #f8f9fa;
+      --bg-elevated: #f1f3f5;
+      --bg-dark: #0a0a0a;
+      --bg-card-dark: #121212;
+      --text-dark: #0a0a0a;
+      --text-muted: #64748b;
+      --text-light: #ffffff;
+      --text-light-muted: #a1a1aa;
+      --border-light: #e2e8f0;
+      --border-dark: #27272a;
+      --accent-black: #000000;
+      --accent-white: #ffffff;
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: #f2f0ea;
-      color: #1c1c1a;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-dark);
       line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
+
+    /* Top Navigation */
     .topbar {
-      background: #14202b;
-      padding: 0 2rem;
+      background: #000000;
+      padding: 0 2.5rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 72px;
+      height: 76px;
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+      border-bottom: 1px solid #1f1f1f;
     }
     .logo {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 14px;
       text-decoration: none;
     }
-    .logo-mark {
-      width: 40px;
+    .logo img {
       height: 40px;
+      width: auto;
+      object-fit: contain;
+      filter: brightness(0) invert(1);
+    }
+    .logo-fallback {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-mark {
+      width: 38px;
+      height: 38px;
       border: 2px solid #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 800;
-      font-size: 18px;
+      font-weight: 900;
+      font-size: 16px;
       color: #ffffff;
       letter-spacing: 1px;
     }
     .logo-text {
       color: #ffffff;
-      font-weight: 700;
+      font-weight: 800;
       font-size: 14px;
-      letter-spacing: 1.5px;
+      letter-spacing: 2px;
       line-height: 1.2;
     }
     .logo-text small {
-      font-weight: 400;
-      font-size: 11px;
-      color: #b0b0b0;
+      font-weight: 500;
+      font-size: 10px;
+      color: #a1a1aa;
       display: block;
+      letter-spacing: 1.5px;
     }
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 1.8rem;
+      gap: 2rem;
       list-style: none;
     }
     .nav-links a {
-      color: #c0c0c0;
+      color: #d4d4d8;
       text-decoration: none;
       font-size: 13px;
       font-weight: 600;
       letter-spacing: 0.5px;
-      transition: color 0.2s;
+      transition: color 0.2s ease;
     }
     .nav-links a:hover { color: #ffffff; }
-    .btn-orange {
-      display: inline-block;
-      background: #e8590c;
+
+    /* Button Styles (Monochrome) */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #000000;
       color: #ffffff !important;
-      padding: 10px 22px;
+      padding: 12px 24px;
       border-radius: 4px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       text-decoration: none;
       letter-spacing: 0.5px;
-      border: none;
+      border: 1px solid #000000;
       cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .btn-orange:hover { background: #d04d0a; transform: translateY(-1px); }
-    .btn-outline {
-      display: inline-block;
-      background: transparent;
-      color: #14202b;
-      padding: 9px 20px;
+    .btn-primary:hover {
+      background: #27272a;
+      border-color: #27272a;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-white {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      color: #000000 !important;
+      padding: 10px 20px;
       border-radius: 4px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       text-decoration: none;
-      border: 2px solid #14202b;
+      letter-spacing: 0.5px;
+      border: 1px solid #ffffff;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
     }
-    .btn-outline:hover { background: #14202b; color: #ffffff; }
-    
+    .btn-white:hover {
+      background: #e4e4e7;
+      border-color: #e4e4e7;
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      color: #000000;
+      padding: 11px 24px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      border: 1.5px solid #000000;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-outline:hover {
+      background: #000000;
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
     /* Hero Section */
     .hero {
-      padding: 6.5rem 2rem 5rem;
-      max-width: 1100px;
+      padding: 7rem 2rem 5.5rem;
+      max-width: 1160px;
       margin: 0 auto;
       text-align: center;
     }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #000000;
+      margin-bottom: 2rem;
+    }
+    .hero-badge::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: #000000;
+      border-radius: 50%;
+    }
     .hero h1 {
-      font-size: 3rem;
-      font-weight: 800;
-      color: #1c1c1a;
-      margin-bottom: 1.2rem;
-      letter-spacing: -0.5px;
-      line-height: 1.15;
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: #000000;
+      margin-bottom: 1.4rem;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      text-transform: uppercase;
     }
     .hero p {
       font-size: 1.15rem;
-      color: #5a5a52;
-      max-width: 700px;
+      color: #52525b;
+      max-width: 740px;
       margin: 0 auto 2.5rem;
+      line-height: 1.7;
     }
     .hero-actions {
       display: flex;
@@ -130,74 +227,117 @@
       flex-wrap: wrap;
     }
 
-    /* Section Styles */
-    .section-container {
+    /* Trust & Specs Bar */
+    .specs-bar {
+      border-top: 1px solid #e4e4e7;
+      border-bottom: 1px solid #e4e4e7;
+      background: #fafafa;
+      padding: 1.75rem 2rem;
+      margin-top: 4rem;
+    }
+    .specs-grid {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 4.5rem 2rem;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      text-align: center;
+    }
+    .spec-item h4 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #000000;
+      margin-bottom: 0.25rem;
+      letter-spacing: -0.5px;
+    }
+    .spec-item p {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #71717a;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Section Styles */
+    .section-container {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 5.5rem 2rem;
     }
     .section-header {
       text-align: center;
-      margin-bottom: 3rem;
+      margin-bottom: 3.5rem;
     }
     .section-tag {
       font-size: 0.75rem;
-      font-weight: 700;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 2px;
-      color: #e8590c;
-      margin-bottom: 0.5rem;
+      letter-spacing: 2.5px;
+      color: #000000;
+      margin-bottom: 0.6rem;
       display: block;
     }
     .section-title {
-      font-size: 2rem;
-      font-weight: 800;
-      color: #14202b;
-      margin-bottom: 0.75rem;
+      font-size: 2.25rem;
+      font-weight: 900;
+      color: #000000;
+      margin-bottom: 0.85rem;
+      letter-spacing: -0.5px;
     }
     .section-subtitle {
       font-size: 1rem;
-      color: #6e6e66;
-      max-width: 600px;
+      color: #52525b;
+      max-width: 620px;
       margin: 0 auto;
+      line-height: 1.6;
     }
 
     /* Services Grid */
     .services-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 1.5rem;
     }
     .service-card {
       background: #ffffff;
-      border-radius: 8px;
-      padding: 2rem;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      border-top: 4px solid #14202b;
-      transition: transform 0.2s, box-shadow 0.2s;
+      border-radius: 6px;
+      padding: 2.25rem 2rem;
+      border: 1px solid #e4e4e7;
+      border-top: 4px solid #000000;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
     }
     .service-card:hover {
       transform: translateY(-4px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-      border-top-color: #e8590c;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.07);
+      border-color: #000000;
     }
     .service-card .icon {
-      font-size: 2.2rem;
-      margin-bottom: 1rem;
+      font-size: 2rem;
+      margin-bottom: 1.25rem;
+      display: inline-block;
+      filter: grayscale(100%);
     }
     .service-card h3 {
       font-size: 1.2rem;
-      font-weight: 700;
-      margin-bottom: 0.6rem;
-      color: #14202b;
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+      color: #000000;
+      letter-spacing: -0.2px;
     }
     .service-card p {
-      font-size: 0.9rem;
-      color: #6e6e66;
-      line-height: 1.5;
+      font-size: 0.92rem;
+      color: #52525b;
+      line-height: 1.6;
     }
 
-    /* Projects & Platform Grid */
+    /* Capabilities / Projects Grid */
+    .capabilities-wrapper {
+      background: var(--bg-subtle);
+      border-top: 1px solid #e4e4e7;
+      border-bottom: 1px solid #e4e4e7;
+      padding: 5.5rem 2rem;
+    }
     .projects-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -205,142 +345,195 @@
     }
     .project-card {
       background: #ffffff;
-      border-radius: 8px;
+      border-radius: 6px;
       overflow: hidden;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      border: 1px solid #e8e6df;
+      border: 1px solid #e4e4e7;
+      transition: all 0.2s ease;
+    }
+    .project-card:hover {
+      border-color: #000000;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
     }
     .project-card-body {
-      padding: 2rem;
+      padding: 2.25rem;
     }
     .project-card .badge {
       display: inline-block;
-      background: #f2f0ea;
-      color: #14202b;
-      font-size: 0.75rem;
+      background: #000000;
+      color: #ffffff;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 3px;
+      margin-bottom: 1.25rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .project-card h3 {
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-bottom: 0.85rem;
+      color: #000000;
+      letter-spacing: -0.3px;
+    }
+    .project-card p {
+      font-size: 0.92rem;
+      color: #52525b;
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+    .project-meta {
+      border-top: 1px solid #f1f3f5;
+      padding-top: 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: #71717a;
       font-weight: 700;
-      padding: 3px 10px;
-      border-radius: 20px;
-      margin-bottom: 1rem;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    .project-card h3 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin-bottom: 0.75rem;
-      color: #14202b;
-    }
-    .project-card p {
-      font-size: 0.9rem;
-      color: #6e6e66;
-      margin-bottom: 1rem;
-    }
-    .project-meta {
-      border-top: 1px solid #f2f0ea;
-      padding-top: 1rem;
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.82rem;
-      color: #8a8578;
-      font-weight: 600;
-    }
 
-    /* Contact Section */
+    /* Contact Section (Black & White Premium) */
     .contact-card {
-      background: #14202b;
+      background: #000000;
       color: #ffffff;
-      border-radius: 12px;
-      padding: 3.5rem 2.5rem;
+      border-radius: 8px;
+      padding: 4rem 3.5rem;
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 3rem;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 3.5rem;
       align-items: center;
-      box-shadow: 0 12px 36px rgba(20,32,43,0.25);
+      border: 1px solid #27272a;
+      box-shadow: 0 20px 48px rgba(0,0,0,0.25);
+    }
+    .contact-info .section-tag {
+      color: #a1a1aa;
     }
     .contact-info h3 {
-      font-size: 1.8rem;
-      font-weight: 800;
+      font-size: 2.25rem;
+      font-weight: 900;
       margin-bottom: 1rem;
       color: #ffffff;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
     }
     .contact-info p {
-      color: #b0b0b0;
-      font-size: 0.95rem;
-      margin-bottom: 2rem;
+      color: #a1a1aa;
+      font-size: 1rem;
+      margin-bottom: 2.5rem;
+      line-height: 1.6;
     }
     .contact-details {
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 1.5rem;
     }
     .contact-item {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 16px;
     }
     .contact-item .c-icon {
-      width: 40px;
-      height: 40px;
-      background: rgba(255,255,255,0.08);
-      border-radius: 8px;
+      width: 44px;
+      height: 44px;
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.2rem;
-      color: #e8590c;
+      font-size: 1.1rem;
+      color: #ffffff;
     }
     .contact-item a {
       color: #ffffff;
       text-decoration: none;
-      font-weight: 600;
-      font-size: 1rem;
+      font-weight: 700;
+      font-size: 1.05rem;
       transition: color 0.2s;
     }
-    .contact-item a:hover { color: #e8590c; }
+    .contact-item a:hover { color: #d4d4d8; text-decoration: underline; }
     .contact-item span {
-      color: #d4d0c8;
-      font-size: 0.95rem;
+      color: #e4e4e7;
+      font-size: 0.98rem;
     }
+    
+    /* Contact Box Action (Right column) */
     .contact-box-action {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      padding: 2.5rem;
+      background: #121212;
+      border: 1px solid #27272a;
+      border-radius: 6px;
+      padding: 3rem 2.5rem;
       text-align: center;
     }
     .contact-box-action h4 {
-      font-size: 1.3rem;
-      margin-bottom: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 0.4rem;
       color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+    .contact-box-action .contact-org {
+      color: #a1a1aa;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 1.25rem;
     }
     .contact-box-action p {
-      color: #b0b0b0;
-      font-size: 0.88rem;
-      margin-bottom: 1.75rem;
+      color: #d4d4d8;
+      font-size: 0.92rem;
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+    .btn-contact-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      background: #ffffff;
+      color: #000000 !important;
+      padding: 14px 20px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 800;
+      text-decoration: none;
+      letter-spacing: 0.5px;
+      border: 1px solid #ffffff;
+      transition: all 0.2s ease;
+    }
+    .btn-contact-action:hover {
+      background: #e4e4e7;
+      border-color: #e4e4e7;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(255,255,255,0.15);
     }
 
+    /* Footer */
     footer {
-      background: #0d161e;
-      color: #8a8578;
+      background: #000000;
+      color: #71717a;
       text-align: center;
-      padding: 2.5rem 2rem;
+      padding: 3rem 2rem;
       font-size: 0.85rem;
-      border-top: 1px solid rgba(255,255,255,0.05);
+      border-top: 1px solid #1f1f1f;
     }
-    footer a { color: #b0b0b0; text-decoration: none; }
+    footer a { color: #a1a1aa; text-decoration: none; font-weight: 600; }
     footer a:hover { color: #ffffff; }
 
     @media (max-width: 850px) {
-      .contact-card { grid-template-columns: 1fr; gap: 2rem; padding: 2rem 1.5rem; }
+      .contact-card { grid-template-columns: 1fr; gap: 2.5rem; padding: 2.5rem 1.75rem; }
+      .specs-grid { grid-template-columns: 1fr; gap: 1.5rem; }
     }
     @media (max-width: 768px) {
-      .topbar { padding: 0 1rem; }
+      .topbar { padding: 0 1.25rem; }
       .nav-links { gap: 1rem; }
-      .nav-links a:not(.btn-orange) { display: none; }
-      .hero h1 { font-size: 2.2rem; }
-      .hero { padding: 4rem 1rem 3rem; }
-      .section-container { padding: 3rem 1rem; }
+      .nav-links a:not(.btn-white) { display: none; }
+      .hero h1 { font-size: 2.3rem; }
+      .hero { padding: 4.5rem 1rem 3.5rem; }
+      .section-container { padding: 3.5rem 1.25rem; }
     }
   </style>
 </head>
@@ -349,7 +542,7 @@
   <!-- Navigation Bar -->
   <nav class="topbar">
     <a href="/" class="logo">
-      <div class="logo-mark">GZ</div>
+      <img src="/logo-small.png" alt="Ground Zero Contractors Inc." />
       <div class="logo-text">
         GROUND ZERO
         <small>CONTRACTORS INC.</small>
@@ -357,14 +550,15 @@
     </a>
     <ul class="nav-links">
       <li><a href="#services">Services</a></li>
-      <li><a href="#projects">Capabilities</a></li>
+      <li><a href="#capabilities">Capabilities</a></li>
       <li><a href="#contact">Contact</a></li>
-      <li><a href="/app/login" class="btn-orange">Staff / Client Login</a></li>
+      <li><a href="/app/login" class="btn-white">Staff / Client Portal</a></li>
     </ul>
   </nav>
 
   <!-- Hero Section -->
   <section class="hero">
+    <div class="hero-badge">Ontario-Wide Operations &middot; Heavy Civil &amp; Remediation</div>
     <h1>Heavy Civil &amp; Remediation Experts</h1>
     <p>
       Ground Zero Contractors Inc. delivers professional heavy civil construction, environmental
@@ -372,10 +566,28 @@
       and secure document management for our team and clients.
     </p>
     <div class="hero-actions">
-      <a href="#contact" class="btn-orange">Request a Quote</a>
+      <a href="#contact" class="btn-primary">Request a Quote</a>
       <a href="/app/login" class="btn-outline">Project Dashboard &rarr;</a>
     </div>
   </section>
+
+  <!-- Specs / Capability Strip -->
+  <div class="specs-bar">
+    <div class="specs-grid">
+      <div class="spec-item">
+        <h4>HEAVY CIVIL</h4>
+        <p>Bulk Earthmoving &amp; Site Prep</p>
+      </div>
+      <div class="spec-item">
+        <h4>REMEDIATION</h4>
+        <p>MOE Standard Soil Management</p>
+      </div>
+      <div class="spec-item">
+        <h4>SAFETY &amp; PACE</h4>
+        <p>Real-Time Production Tracking</p>
+      </div>
+    </div>
+  </div>
 
   <!-- Services Section -->
   <section class="section-container" id="services">
@@ -387,7 +599,7 @@
 
     <div class="services-grid">
       <div class="service-card">
-        <div class="icon">&#128679;</div>
+        <div class="icon">&#9881;</div>
         <h3>Heavy Civil Construction</h3>
         <p>Bulk excavation, site grading, road base preparation, and structural foundation earthworks executed with precision machinery.</p>
       </div>
@@ -397,12 +609,12 @@
         <p>Brownfield rehabilitation, contaminated soil excavation, safe transport, and environmental regulatory compliance.</p>
       </div>
       <div class="service-card">
-        <div class="icon">&#127959;</div>
+        <div class="icon">&#9638;</div>
         <h3>Demolition &amp; Decommissioning</h3>
         <p>Full structural demolition, industrial asset removal, concrete crushing, and on-site material reclamation.</p>
       </div>
       <div class="service-card">
-        <div class="icon">&#128202;</div>
+        <div class="icon">&#9776;</div>
         <h3>Live Production Tracking</h3>
         <p>Proprietary daily quantity logging, progress transparency, and air-tight document archiving for clients and stakeholders.</p>
       </div>
@@ -410,8 +622,8 @@
   </section>
 
   <!-- Capabilities / Projects Section -->
-  <section class="section-container" id="projects" style="background: #e9e7e0; max-width: 100%; padding-left: 2rem; padding-right: 2rem;">
-    <div style="max-width: 1100px; margin: 0 auto;">
+  <div class="capabilities-wrapper" id="capabilities">
+    <div style="max-width: 1160px; margin: 0 auto;">
       <div class="section-header">
         <span class="section-tag">Capabilities &amp; Experience</span>
         <h2 class="section-title">Ontario-Wide Project Execution</h2>
@@ -456,13 +668,13 @@
         </div>
       </div>
     </div>
-  </section>
+  </div>
 
   <!-- Contact Section -->
   <section class="section-container" id="contact">
     <div class="contact-card">
       <div class="contact-info">
-        <span class="section-tag" style="color: #e8590c;">Get In Touch</span>
+        <span class="section-tag">Direct Inquiries</span>
         <h3>Ready to discuss your next project?</h3>
         <p>Reach out directly to our operations team for project estimates, tender packages, or equipment availability.</p>
 
@@ -470,7 +682,7 @@
           <div class="contact-item">
             <div class="c-icon">&#9993;</div>
             <div>
-              <small style="color: #8a8578; display: block; font-size: 0.75rem; text-transform: uppercase;">Direct Email</small>
+              <small style="color: #71717a; display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">Direct Email</small>
               <a href="mailto:peter@gzci.ca">peter@gzci.ca</a>
             </div>
           </div>
@@ -478,15 +690,15 @@
           <div class="contact-item">
             <div class="c-icon">&#9742;</div>
             <div>
-              <small style="color: #8a8578; display: block; font-size: 0.75rem; text-transform: uppercase;">Direct Phone</small>
+              <small style="color: #71717a; display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">Direct Phone</small>
               <a href="tel:+19055704350">+1 (905) 570-4350</a>
             </div>
           </div>
 
           <div class="contact-item">
-            <div class="c-icon">&#128205;</div>
+            <div class="c-icon">&#9906;</div>
             <div>
-              <small style="color: #8a8578; display: block; font-size: 0.75rem; text-transform: uppercase;">Head Office</small>
+              <small style="color: #71717a; display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">Head Office</small>
               <span>52 Sutherland Street East, Caledonia, ON N3W 1C1</span>
             </div>
           </div>
@@ -494,10 +706,10 @@
       </div>
 
       <div class="contact-box-action">
-        <h4>Peter Sabota</h4>
-        <p style="color: #e8590c; font-weight: 600; margin-bottom: 0.5rem;">Ground Zero Contractors Inc.</p>
+        <h4>Peter Sobota</h4>
+        <div class="contact-org">Ground Zero Contractors Inc.</div>
         <p>Send project drawings, RFPs, or inquiries directly to Peter's desk for immediate review.</p>
-        <a href="mailto:peter@gzci.ca?subject=Project%20Inquiry%20%E2%80%94%20Ground%20Zero%20Contractors" class="btn-orange" style="display: block; width: 100%; font-size: 14px; padding: 12px 0;">
+        <a href="mailto:peter@gzci.ca?subject=Project%20Inquiry%20%E2%80%94%20Ground%20Zero%20Contractors" class="btn-contact-action">
           &#9993; Email Peter (peter@gzci.ca)
         </a>
       </div>
@@ -506,10 +718,10 @@
 
   <!-- Footer -->
   <footer>
-    <p style="margin-bottom: 0.5rem;">&copy; 2026 Ground Zero Contractors Inc. All rights reserved.</p>
+    <p style="margin-bottom: 0.75rem; color: #a1a1aa; font-weight: 500;">&copy; 2026 Ground Zero Contractors Inc. All rights reserved.</p>
     <p>
       <a href="#services">Services</a> &middot; 
-      <a href="#projects">Capabilities</a> &middot; 
+      <a href="#capabilities">Capabilities</a> &middot; 
       <a href="#contact">Contact</a> &middot; 
       <a href="/app/login">Staff / Client Portal</a>
     </p>
