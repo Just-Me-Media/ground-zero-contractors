@@ -4,6 +4,7 @@ import Login from './Login'
 import Dashboard from './Dashboard'
 import ProductionLog from './ProductionLog'
 import NewProjectWizard from './NewProjectWizard'
+import StaffCertifications from './StaffCertifications'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/new" element={<PrivateRoute><NewProjectWizard /></PrivateRoute>} />
+        <Route path="/safety-certs" element={<PrivateRoute><StaffCertifications /></PrivateRoute>} />
         <Route path="/project/:id" element={<PrivateRoute><ProductionLog /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
