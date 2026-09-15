@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './AuthContext'
 import Login from './Login'
 import Dashboard from './Dashboard'
 import ProductionLog from './ProductionLog'
+import JobCosting from './JobCosting'
 import NewProjectWizard from './NewProjectWizard'
 import StaffCertifications from './StaffCertifications'
 
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/new" element={<PrivateRoute><NewProjectWizard /></PrivateRoute>} />
         <Route path="/safety-certs" element={<PrivateRoute><StaffCertifications /></PrivateRoute>} />
         <Route path="/project/:id" element={<PrivateRoute><ProductionLog /></PrivateRoute>} />
+        <Route path="/project/:id/costs" element={<PrivateRoute><JobCosting /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>

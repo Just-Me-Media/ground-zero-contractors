@@ -183,6 +183,15 @@ export default function ProductionLog() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
+            onClick={() => navigate(`/project/${id}/costs`)}
+            style={{
+              background: '#2b8a3e', color: '#fff', border: 'none',
+              padding: '6px 14px', borderRadius: 4, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer'
+            }}
+          >
+            💰 Bid vs Actual
+          </button>
+          <button
             onClick={() => navigate('/safety-certs')}
             style={{
               background: '#233342', color: '#fff', border: '1px solid #374a5d',
