@@ -111,6 +111,54 @@ lines) with a live preview. One tap to **Copy**, **Email**, **Text**, **Print**,
 
 ---
 
+## 5. Role Playbooks — Who Does What
+
+### MIKE (Field — phone, Mon–Fri, a few minutes a day)
+
+You log what got spent. That's it. You never touch the bid, the percentages, or anyone else's entries.
+
+1. Log in on your phone, open the job (e.g. **Tank 211**), tap the green **💰 Bid vs Actual** button, open the **🧾 Log spending** tab.
+2. For each thing that cost money or burned hours that day, tap through one entry:
+   - **Which day?** — defaults to today. Change it if you're catching up yesterday.
+   - **Which part of the bid is this for?** — pick the line (e.g. Labourer, Diesel, Bin truck). The usual unit and rate fill in by themselves.
+   - **What was it?** — plain words: "6 labourers day shift", "400L diesel", "crew lunches".
+   - **How many?** — hours or quantity (e.g. 8, 400, 6). Leave the rate alone unless today was actually different (fuel price jumped, sub charged extra).
+   - **Hours (if labour)** — reg hours here; put OT in the description for now (e.g. "plus 2 OT each").
+   - **Receipt note** — where's the paper: "photo in Papers → Invoices", "glovebox", etc.
+   - Tap **Log ✓**. The day total updates instantly. Repeat for the next item.
+3. Snap every receipt and drop it in the **📂 Papers** tab under **Invoices & receipts** the same day.
+4. Rules that keep the numbers honest:
+   - Log **same day**. Friday memory of Monday is fiction.
+   - One entry per thing — five 30-second entries beat one evening lump.
+   - **📊 Daily Quantity Log** (project page) is amounts of work (loads, days) — **🧾 Log spending** is dollars. Different tabs, never the same entry twice.
+   - No signal? Fill the **📥 blank daily sheet** (button on the Log tab, opens in Excel) and enter it the next morning.
+5. You cannot delete entries or change the bid — that's intentional. Mistake? Tell Hanna, she fixes it.
+
+### HANNA (Office — payroll, bookkeeping, true costs)
+
+You own accuracy. Mike writes the first draft of the numbers; you make them books-ready.
+
+1. **True costs (one-time per job, most important job on this list).** Open **📝 What we bid**. Every line flagged **⚠️ True cost needed** still shows the charge-out rate where the real cost belongs. Tap **✏️ Change** on each line and type what GZC actually pays (wages, rental rates, fuel cost). The amber ⏳ ESTIMATE banner disappears as you clear them — when it's gone, Peter's numbers are real.
+2. **Daily review (10 min).** Open **🧾 Log spending**, check Mike's entries for the day: wrong bid line? Missing receipt? Fix it or send it back to him. (Deleting his duplicate or typo'd entry is your call — Mike can't delete.)
+3. **Papers.** Supplier invoices go in **📂 Papers → Invoices & receipts**; signed extras and contracts in their folders. Every invoice should match a spending entry.
+4. **Friday close (15 min).** Open **👀 Where am I?**: check the Mon–Fri list covers all 5 days, tap **📊 Save the spreadsheet (CSV)** — that's your bookkeeping input for the week. Nudge Peter: "percentages need your eyes."
+5. **Payroll prep (current method).** Until the named-worker roster lands (Step 2), use the CSV's Hours column per entry plus Mike's descriptions to attribute reg/OT. Keep a consistent naming habit with Mike now ("6 labourers × 8 reg + 2 OT") — it becomes the roster data later.
+
+### PETER (Owner — 5 minutes a day, 15 on Friday)
+
+You read. You don't enter data.
+
+1. **Daily glance.** Open the job → **💰 Bid vs Actual** → **👀 Where am I?** Read exactly one thing: the big banner. Green winning, red losing, amber means Hanna still has true costs to enter — call her, not the site.
+2. **Friday ritual (this is the whole system working).**
+   - Check the Mon–Fri day list: 5 days of entries? If a day is empty, ask Mike what happened.
+   - Tap each job part to its honest % (Not started / ¼ / ½ / ¾ / Done). The winning/losing number updates instantly.
+   - Tap **📋 Copy the words** or **✉️ Email it** — the update writes itself. Send it to whoever needs it.
+3. **What the colors mean.** Green "Under budget 👍" = spending less than bid. Red "Over budget ⚠️" = spending more — tap the line, read what drove it, decide tomorrow's plan differently. That's the firewall conversation from the trailer, now with numbers.
+4. **Change requests.** Never edit numbers yourself in a hurry — tell Hanna what changed ("bin truck is now 45 days, not 40") and she updates the bid so history stays clean.
+5. **Clients.** They can open the job and see progress % and crew-on-site days only. No dollars ever reach them — that's automatic, nothing for you to set.
+
+---
+
 ## 4. Need Support or Changes?
 
 If you need any adjustments, new features, or assistance, contact:  
