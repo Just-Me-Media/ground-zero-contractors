@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from './supabase'
 import { useAuth } from './AuthContext'
 
@@ -73,6 +73,7 @@ const PCT_STEPS = [
 export default function JobCosting() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { userRole } = useAuth()
   // Roles: full/admin (Peter, Hanna) can do everything including delete.
   // limited (Mike, the PM) can do everything EXCEPT delete — he edits the bid
@@ -82,7 +83,9 @@ export default function JobCosting() {
   const isClient = userRole === 'client'
   const canEdit = !isClient
   const [project, setProject] = useState(null)
-  const [tab, setTab] = useState('where') // Peter opens here. Always.
+  // Deep-linkable tabs: ?tab=bid lands straight on the bid sheet (badges link here).
+  const initialTab = new URLSearchParams(location.search).get('tab')
+  const [tab, setTab] = useState(['where', 'bid', 'daily', 'papers'].includes(initialTab) ? initialTab : 'where') // Peter opens here. Always.
   const [bidItems, setBidItems] = useState([])
   const [costs, setCosts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -686,7 +689,13 @@ export default function JobCosting() {
                 {missingTrueCost.length > 0 && (
                   <div style={S.warnBanner}>
                     ⚠️ {missingTrueCost.length} line{missingTrueCost.length === 1 ? '' : 's'} still {missingTrueCost.length === 1 ? 'needs its' : 'need their'} true cost — every dollar figure below is an estimate.
-                    {canManage ? ' Fix them on the "What we bid" tab.' : ' Ask Peter or Hanna to fill them in.'}
+                    {canEdit ? (
+                      <button onClick={() => { const first = missingTrueCost[0]; if (first) startEdit(first) }} style={S.warnBtn}>
+                        Fix the first one now →
+                      </button>
+                    ) : (
+                      ' Ask Peter, Hanna or Mike to fill them in.'
+                    )}
                   </div>
                 )}
                 {/* THE VERDICT — one glance, no reading required.
@@ -804,7 +813,13 @@ export default function JobCosting() {
                         <div style={{ fontSize: 19, fontWeight: 800 }}>{catEmoji(b.category)} {b.item}</div>
                       </div>
                       {needsTrueCost && (
-                        <div style={S.trueCostBadge}>⚠️ True cost needed — bid rate shown for now</div>
+                        canEdit ? (
+                          <button onClick={() => startEdit(b)} style={{ ...S.trueCostBadge, cursor: 'pointer' }} title="Tap to enter the true cost">
+                            ⚠️ True cost needed — tap to fix →
+                          </button>
+                        ) : (
+                          <div style={S.trueCostBadge}>⚠️ True cost needed — bid rate shown for now</div>
+                        )
                       )}
                       <div style={{ fontSize: 16, marginTop: 4 }}>
                         Bid <strong>{money(bidCost)}</strong> &nbsp;→&nbsp; Spent <strong>{money(spent)}</strong>
@@ -901,7 +916,13 @@ export default function JobCosting() {
               <div key={b.id} style={S.bidRow}>
                 <div style={{ fontSize: 17, fontWeight: 800 }}>{catEmoji(b.category)} {b.item}</div>
                 {(b.notes || '').includes(TRUE_COST_NEEDLE) && (
-                  <div style={S.trueCostBadge}>⚠️ True cost needed</div>
+                  canEdit ? (
+                    <button onClick={() => startEdit(b)} style={{ ...S.trueCostBadge, cursor: 'pointer' }} title="Tap to enter the true cost">
+                      ⚠️ True cost needed — tap to fix →
+                    </button>
+                  ) : (
+                    <div style={S.trueCostBadge}>⚠️ True cost needed</div>
+                  )
                 )}
                 <div style={{ fontSize: 15, color: '#57544c', marginTop: 2 }}>
                   {b.qty} {b.unit} · costs us <strong>{money(num(b.qty) * num(b.unit_cost))}</strong> · we charge <strong>{money(num(b.qty) * num(b.unit_billable))}</strong>
@@ -1164,6 +1185,7 @@ const S = {
   spendRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, borderTop: '2px solid #f2f0ea', padding: '12px 4px' },
   crewNote: { background: '#fff4e6', border: '2px solid #f0a35e', borderRadius: 10, padding: '12px 16px', fontSize: 16, color: '#7c4a12' },
   warnBanner: { background: '#fff4e6', border: '2px solid #e8590c', borderRadius: 12, padding: '14px 16px', fontSize: 17, fontWeight: 700, color: '#7c4a12', marginBottom: 14 },
+  warnBtn: { display: 'block', marginTop: 10, background: '#e8590c', color: '#fff', border: 'none', borderRadius: 10, padding: '14px 18px', fontSize: 17, fontWeight: 800, cursor: 'pointer', width: '100%' },
   trueCostBadge: { display: 'inline-block', fontSize: 14, fontWeight: 800, background: '#fff4e6', color: '#a8380d', border: '2px solid #f0a35e', padding: '4px 12px', borderRadius: 20, marginTop: 8 },
   shareBtns: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 8, marginBottom: 10 },
   shareBtn: { background: '#14202b', color: '#fff', border: 'none', borderRadius: 10, padding: '14px 10px', fontSize: 16, fontWeight: 800, cursor: 'pointer' },

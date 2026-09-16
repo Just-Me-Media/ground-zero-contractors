@@ -272,7 +272,7 @@ export default function ProductionLog() {
               )}
               {trueCostMissing > 0 && (
                 <button
-                  onClick={() => navigate(`/project/${id}/costs`)}
+                  onClick={() => navigate(`/project/${id}/costs?tab=bid`)}
                   style={{ display: 'inline-block', background: '#fff4e6', color: '#a8380d', border: '2px solid #f0a35e', fontSize: '0.85rem', fontWeight: 800, padding: '4px 12px', borderRadius: 20, marginTop: 8, marginLeft: 8, cursor: 'pointer' }}
                 >
                   ⚠️ {trueCostMissing} bid line{trueCostMissing === 1 ? '' : 's'} need{trueCostMissing === 1 ? 's its' : ' their'} true cost — tap to fix →
