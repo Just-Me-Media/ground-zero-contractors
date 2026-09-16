@@ -74,11 +74,13 @@ export default function JobCosting() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { userRole } = useAuth()
-  // Roles: full/admin (Peter, Hanna) manage everything. limited (Mike) may
-  // only ADD daily entries + upload papers — never delete, never touch the bid
-  // or the % buttons. client sees a redacted $-free view (rendered below).
+  // Roles: full/admin (Peter, Hanna) can do everything including delete.
+  // limited (Mike, the PM) can do everything EXCEPT delete — he edits the bid
+  // he wrote, moves %s, logs and imports daily entries. client sees a
+  // redacted $-free view (rendered below).
   const canManage = userRole === 'admin' || userRole === 'full'
   const isClient = userRole === 'client'
+  const canEdit = !isClient
   const [project, setProject] = useState(null)
   const [tab, setTab] = useState('where') // Peter opens here. Always.
   const [bidItems, setBidItems] = useState([])
@@ -425,6 +427,126 @@ export default function JobCosting() {
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 500)
   }
 
+  // ---------- CSV IMPORT (Mike drops his filled daily sheet) ----------
+  // Parses the blank-sheet format, matches bid lines by name, previews every
+  // row for confirmation. Nothing enters the books sight-unseen.
+  const [importRows, setImportRows] = useState(null)
+  const [importError, setImportError] = useState(null)
+  const [importing, setImporting] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+
+  function parseCSV(text) {
+    const rows = []
+    let field = '', row = [], inQuotes = false
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]
+      if (inQuotes) {
+        if (ch === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++ }
+          else inQuotes = false
+        } else field += ch
+      } else if (ch === '"') inQuotes = true
+      else if (ch === ',') { row.push(field); field = '' }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++
+        row.push(field); field = ''
+        if (row.some(c => c.trim() !== '')) rows.push(row)
+        row = []
+      } else field += ch
+    }
+    row.push(field)
+    if (row.some(c => c.trim() !== '')) rows.push(row)
+    return rows
+  }
+
+  const normHeader = h => (h || '').toLowerCase().replace(/[^a-z]/g, '')
+
+  function handleSheetFile(file) {
+    setImportError(null)
+    setImportRows(null)
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const rows = parseCSV(String(reader.result || ''))
+        if (rows.length < 2) throw new Error('no data rows')
+        // Find the header row (the one mentioning date + bid line)
+        let hi = rows.findIndex(r => {
+          const h = r.map(normHeader).join('|')
+          return h.includes('date') && (h.includes('bidline') || h.includes('bid'))
+        })
+        if (hi < 0) hi = 1 // blank-sheet layout: title row, then header
+        const headers = rows[hi].map(normHeader)
+        const col = want => headers.findIndex(h => want.some(w => h.includes(w)))
+        const cDate = col(['date']), cLine = col(['bidline', 'bid']), cDesc = col(['whathappened', 'what', 'description'])
+        const cQty = col(['howmany', 'qty', 'quantity']), cUnit = col(['countedin', 'unit'])
+        const cRate = col(['priceeach', 'rate', 'price']), cTotal = col(['receipttotal', 'total'])
+        const cHours = col(['hours']), cNote = col(['receipt', 'note'])
+        if (cDate < 0) throw new Error('no Date column found')
+        const parsed = []
+        for (let i = hi + 1; i < rows.length; i++) {
+          const r = rows[i]
+          const date = (r[cDate] || '').trim()
+          const lineName = cLine >= 0 ? (r[cLine] || '').trim() : ''
+          const desc = cDesc >= 0 ? (r[cDesc] || '').trim() : ''
+          const qty = cQty >= 0 ? num(r[cQty]) : 0
+          const unit = cUnit >= 0 ? (r[cUnit] || '').trim() : ''
+          const rate = cRate >= 0 ? num(r[cRate]) : 0
+          const total = cTotal >= 0 ? num(r[cTotal]) : 0
+          const hours = cHours >= 0 ? num(r[cHours]) : 0
+          const note = cNote >= 0 ? (r[cNote] || '').trim() : ''
+          const lineTotal = (qty && rate) ? qty * rate : total
+          if (!date && !lineName && !desc && !lineTotal) continue // blank row
+          const okDate = /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date + 'T12:00:00').getTime())
+          const linked = lineName ? bidItems.find(b => b.item.toLowerCase() === lineName.toLowerCase()) : null
+          parsed.push({
+            key: i, date, lineName, bidId: linked ? linked.id : (lineName ? null : (bidItems[0]?.id || null)),
+            desc: desc || lineName, qty, unit, rate, total, hours, note, lineTotal,
+            ok: okDate && lineTotal > 0 && (linked || !lineName),
+          })
+        }
+        if (!parsed.length) throw new Error('no filled rows found')
+        setImportRows(parsed)
+      } catch (e) {
+        setImportError('Could not read that sheet (' + (e.message || 'unknown format') + '). Use the downloaded blank daily sheet so columns match.')
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  async function confirmImport() {
+    const good = (importRows || []).filter(r => r.ok && r.bidId)
+    if (!good.length) return
+    setImporting(true)
+    const rows = good.map(r => {
+      const linked = bidItems.find(b => String(b.id) === String(r.bidId))
+      const useRate = r.qty && r.rate
+      return {
+        project_id: id,
+        date: r.date,
+        bid_item_id: r.bidId,
+        category: linked ? linked.category : 'Other',
+        description: (r.desc || linked?.item || 'Imported entry').slice(0, 200),
+        qty: useRate ? r.qty : 1,
+        unit: useRate ? (r.unit || '') : '',
+        unit_actual: useRate ? r.rate : r.lineTotal,
+        hours: r.hours || 0,
+        receipt_notes: (r.note || 'imported sheet').slice(0, 200),
+      }
+    })
+    if (useLocal) {
+      persistCosts([...rows.map(r => ({ ...r, id: uid() })), ...costs])
+    } else {
+      const { data, error } = await supabase.from('cost_entries').insert(rows).select()
+      if (!error && data) setCosts(prev => [...data, ...prev])
+    }
+    const sum = good.reduce((s, r) => s + r.lineTotal, 0)
+    const days = [...new Set(good.map(r => r.date))].join(', ')
+    setLastLogged({ when: new Date(), text: `Sheet import: ${good.length} entries, ${money(sum)} (${days})` })
+    setImportRows(null)
+    setImporting(false)
+  }
+
   // ---------- PAPERS (bid docs / contract / invoices & receipts) ----------
   const DOC_BUCKET = 'project-files'
   const docPath = f => `${id}/Costing - ${docFolder}/${f}`
@@ -692,21 +814,17 @@ export default function JobCosting() {
                         <div style={{ width: `${Math.min(100, num(b.pct_complete))}%`, height: '100%', background: '#2b8a3e', borderRadius: 8 }} />
                       </div>
                       <div style={{ fontSize: 16, fontWeight: 700, margin: '6px 0' }}>{num(b.pct_complete)}% finished</div>
-                      {canManage ? (
-                        <div style={S.pctBtns}>
-                          {PCT_STEPS.map(s => (
-                            <button
-                              key={s.value}
-                              onClick={() => setPct(b.id, s.value)}
-                              style={{ ...S.pctBtn, ...(num(b.pct_complete) === s.value ? S.pctBtnActive : {}) }}
-                            >
-                              {s.label}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <p style={S.small}>Only Peter or Hanna can move this — tell them when it changes.</p>
-                      )}
+                      <div style={S.pctBtns}>
+                        {PCT_STEPS.map(s => (
+                          <button
+                            key={s.value}
+                            onClick={() => setPct(b.id, s.value)}
+                            style={{ ...S.pctBtn, ...(num(b.pct_complete) === s.value ? S.pctBtnActive : {}) }}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )
                 })}
@@ -727,17 +845,17 @@ export default function JobCosting() {
               <div style={{ color: bidTotals.margin >= 0 ? '#2b8a3e' : '#c92a2a' }}>Left for you: <strong>{money(bidTotals.margin)}</strong>{missingTrueCost.length > 0 ? ' (estimate)' : ''}</div>
             </div>
 
-            {!canManage && (
-              <p style={S.p}>👀 You're looking at the bid — only Peter or Hanna can change it. Spot something wrong? Tell them.</p>
+            {!canEdit && (
+              <p style={S.p}>👀 You're looking at the bid — only the GZ team can change it.</p>
             )}
 
-            {canManage && bidItems.length === 0 && (
+            {canEdit && bidItems.length === 0 && (
               <button onClick={seedTemplate} style={S.bigOrange}>Start with the normal job list →</button>
             )}
 
-            {canManage && !showBidForm ? (
+            {canEdit && !showBidForm ? (
               <button onClick={() => { setEditingBid(null); setShowBidForm(true) }} style={S.bigWhite}>＋ Add something we bid</button>
-            ) : canManage ? (
+            ) : canEdit ? (
               <form onSubmit={saveBid} style={S.stackForm}>
                 <label style={S.flabel}>What kind of thing is it?
                   <select value={bForm.category} onChange={e => setBForm({ ...bForm, category: e.target.value })} style={S.finput}>
@@ -790,10 +908,10 @@ export default function JobCosting() {
                   {num(b.contingency_pct) > 0 && <span> · holds back {b.contingency_pct}%</span>}
                 </div>
                 {b.notes ? <div style={{ fontSize: 14, color: '#8a8578', fontStyle: 'italic' }}>📝 {b.notes}</div> : null}
-                {canManage && (
+                {canEdit && (
                   <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                     <button onClick={() => startEdit(b)} style={S.navBtn}>✏️ Change</button>
-                    <button onClick={() => deleteBid(b.id)} style={S.navBtn}>🗑 Remove</button>
+                    {canManage && <button onClick={() => deleteBid(b.id)} style={S.navBtn}>🗑 Remove</button>}
                   </div>
                 )}
               </div>
@@ -812,6 +930,52 @@ export default function JobCosting() {
             <h2 style={{ fontSize: 24, margin: '12px 0 6px' }}>🧾 Log what got spent</h2>
             <p style={S.p}>Fill what you know. <strong>Either</strong> quantity + price each (e.g. 400 litres at $1.72) <strong>or</strong> just the total dollars off the receipt (e.g. $84 lunch). The Final screen updates by itself.</p>
             <button onClick={handleBlankSheet} style={S.bigWhite}>📥 Download blank daily sheet (for Excel / no-signal days)</button>
+
+            {/* Drag-drop import: Mike drops the filled sheet, checks the preview, confirms */}
+            <div
+              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleSheetFile(f) }}
+              style={{ ...S.dropZone, borderColor: dragOver ? '#e8590c' : '#c8c4b7', background: dragOver ? '#fff4eb' : '#fafaf8' }}
+            >
+              <div style={{ fontSize: 17, fontWeight: 800 }}>📥 Drop the filled daily sheet here (.csv)</div>
+              <div style={{ fontSize: 14, color: '#6e6e66', marginTop: 4 }}>or <label style={{ color: '#e8590c', fontWeight: 800, cursor: 'pointer' }}>pick the file<input type="file" accept=".csv" style={{ display: 'none' }} onChange={e => { handleSheetFile(e.target.files?.[0]); e.target.value = '' }} /></label> — you'll check every line before anything is logged</div>
+            </div>
+            {importError && <p style={{ fontSize: 15, color: '#c92a2a' }}>⚠️ {importError}</p>}
+
+            {importRows && (
+              <div style={S.importBox}>
+                <h3 style={S.h3}>Check these {importRows.length} lines, then confirm 👇</h3>
+                <p style={S.small}>Green rows will be logged. Red rows need attention first — pick the right bid line or fix the sheet.</p>
+                {importRows.map(r => (
+                  <div key={r.key} style={{ ...S.importRow, borderColor: r.ok && r.bidId ? '#2b8a3e' : '#c92a2a' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700 }}>{r.desc || '(no description)'}</div>
+                      <div style={{ fontSize: 14, color: '#6e6e66' }}>
+                        {r.date || 'no date'} · {r.qty && r.rate ? `${r.qty} ${r.unit || ''} × $${r.rate}` : 'receipt total'} · <strong>{money(r.lineTotal)}</strong>
+                        {r.hours ? ` · ${r.hours} hrs` : ''}
+                      </div>
+                      {!r.ok && <div style={{ fontSize: 14, color: '#c92a2a', fontWeight: 700 }}>⚠️ {!/^\d{4}-\d{2}-\d{2}$/.test(r.date) ? 'bad date (use YYYY-MM-DD)' : r.lineTotal <= 0 ? 'no amount' : ''}</div>}
+                      {r.ok && !r.bidId && (
+                        <select value="" onChange={e => setImportRows(prev => prev.map(x => x.key === r.key ? { ...x, bidId: e.target.value || null, ok: !!e.target.value } : x))} style={{ ...S.finput, marginTop: 6, padding: 10, fontSize: 15 }}>
+                          <option value="">⚠️ "{r.lineName}" didn't match — pick the bid line…</option>
+                          {bidItems.map(b => <option key={b.id} value={b.id}>{catEmoji(b.category)} {b.item}</option>)}
+                        </select>
+                      )}
+                      {r.ok && r.bidId && r.lineName !== (bidItems.find(b => String(b.id) === String(r.bidId))?.item || '') && (
+                        <div style={{ fontSize: 13, color: '#6e6e66' }}>→ {bidItems.find(b => String(b.id) === String(r.bidId))?.item}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button onClick={confirmImport} disabled={importing || !importRows.some(r => r.ok && r.bidId)} style={S.bigOrange}>
+                    {importing ? 'Logging…' : `✓ Log ${importRows.filter(r => r.ok && r.bidId).length} lines (${money(importRows.filter(r => r.ok && r.bidId).reduce((s, r) => s + r.lineTotal, 0))})`}
+                  </button>
+                  <button onClick={() => setImportRows(null)} style={S.navBtn}>Cancel</button>
+                </div>
+              </div>
+            )}
 
             {lastLogged && (
               <div style={S.loggedOk}>✓ Logged: {lastLogged.text}</div>
@@ -1006,4 +1170,7 @@ const S = {
   summaryPreview: { whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 14, background: '#fafaf8', border: '2px solid #e8e6df', borderRadius: 10, padding: '12px 14px', color: '#333', maxHeight: 260, overflowY: 'auto', margin: 0 },
   loggedOk: { background: '#d3f9d6', border: '2px solid #2b8a3e', color: '#2b8a3e', borderRadius: 10, padding: '12px 16px', fontSize: 16, fontWeight: 700, marginBottom: 12 },
   detailBox: { background: '#fff', border: '2px dashed #d4d0c8', borderRadius: 10, padding: 14 },
+  dropZone: { border: '2px dashed #c8c4b7', borderRadius: 10, padding: '16px', textAlign: 'center', marginTop: 10, marginBottom: 6 },
+  importBox: { background: '#fff', border: '2px solid #14202b', borderRadius: 10, padding: 14, marginTop: 10, marginBottom: 12 },
+  importRow: { border: '2px solid #e8e6df', borderRadius: 8, padding: '10px 12px', marginBottom: 8, display: 'flex', gap: 8 },
 }

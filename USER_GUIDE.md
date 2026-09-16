@@ -113,36 +113,29 @@ lines) with a live preview. One tap to **Copy**, **Email**, **Text**, **Print**,
 
 ## 5. Role Playbooks — Who Does What
 
-### MIKE (Field — phone, Mon–Fri, a few minutes a day)
+### MIKE (Project Manager — field truth, Mon–Fri)
 
-You log what got spent. That's it. You never touch the bid, the percentages, or anyone else's entries.
+You own everything that happens on site, in the app that means: log it, keep the bid current, move the %s. The one thing you can't do is delete — that protects everyone from accidents.
 
-1. Log in on your phone, open the job (e.g. **Tank 211**), tap the green **💰 Bid vs Actual** button, open the **🧾 Log spending** tab.
-2. For each thing that cost money or burned hours that day, tap through one entry:
-   - **Which day?** — defaults to today. Change it if you're catching up yesterday.
-   - **Which part of the bid is this for?** — pick the line (e.g. Labourer, Diesel, Bin truck). The usual unit and rate fill in by themselves.
-   - **What was it?** — plain words: "6 labourers day shift", "400L diesel", "crew lunches".
-   - **How many?** — hours or quantity (e.g. 8, 400, 6). Leave the rate alone unless today was actually different (fuel price jumped, sub charged extra).
-   - **Hours (if labour)** — reg hours here; put OT in the description for now (e.g. "plus 2 OT each").
-   - **Receipt note** — where's the paper: "photo in Papers → Invoices", "glovebox", etc.
-   - Tap **Log ✓**. The day total updates instantly. Repeat for the next item.
-3. Snap every receipt and drop it in the **📂 Papers** tab under **Invoices & receipts** the same day.
-4. Rules that keep the numbers honest:
-   - Log **same day**. Friday memory of Monday is fiction.
-   - One entry per thing — five 30-second entries beat one evening lump.
-   - **📊 Daily Quantity Log** (project page) is amounts of work (loads, days) — **🧾 Log spending** is dollars. Different tabs, never the same entry twice.
-   - No signal? Fill the **📥 blank daily sheet** (button on the Log tab, opens in Excel) and enter it the next morning.
-5. You cannot delete entries or change the bid — that's intentional. Mistake? Tell Hanna, she fixes it.
+**Daily logging — two ways, your choice:**
+- **A. In the app (best when you have signal).** Log spending tab → pick the bid line (unit + usual rate fill in) → type how many/hours → Log ✓. 30 seconds a line.
+- **B. Drop the filled sheet (best from the laptop).** Tap **📥 Download blank daily sheet** once — it's pre-filled with every bid line. Fill it during the day in Excel, then drag-drop the `.csv` back onto the Log tab. You'll get a preview: green rows log as-is, red rows need a fix (bad date, unknown line name — pick the right bid line from the dropdown). Nothing enters the books until you hit confirm.
+- Either way: same-day entries, one line per cost event, receipt photo in **📂 Papers → Invoices & receipts** the same day.
+- No signal? The filled sheet *is* the backup — import it the next morning.
+
+**Keeping the job current:** the bid is yours — you wrote it. **✏️ Change** any line when scope shifts, move the **% finished** buttons as work completes. Mistake you can't undo? Hanna or Peter deletes; ask them.
+
+**Two logs, never mixed:** **📊 Daily Quantity Log** (project page) = amounts of work (loads, days). **🧾 Log spending** = dollars. Same event, two different tabs, never the same entry twice.
 
 ### HANNA (Office — payroll, bookkeeping, true costs)
 
-You own accuracy. Mike writes the first draft of the numbers; you make them books-ready.
+You're not onsite, so you never audit Mike's entries — what he logged is what happened. Your jobs:
 
 1. **True costs (one-time per job, most important job on this list).** Open **📝 What we bid**. Every line flagged **⚠️ True cost needed** still shows the charge-out rate where the real cost belongs. Tap **✏️ Change** on each line and type what GZC actually pays (wages, rental rates, fuel cost). The amber ⏳ ESTIMATE banner disappears as you clear them — when it's gone, Peter's numbers are real.
-2. **Daily review (10 min).** Open **🧾 Log spending**, check Mike's entries for the day: wrong bid line? Missing receipt? Fix it or send it back to him. (Deleting his duplicate or typo'd entry is your call — Mike can't delete.)
-3. **Papers.** Supplier invoices go in **📂 Papers → Invoices & receipts**; signed extras and contracts in their folders. Every invoice should match a spending entry.
-4. **Friday close (15 min).** Open **👀 Where am I?**: check the Mon–Fri list covers all 5 days, tap **📊 Save the spreadsheet (CSV)** — that's your bookkeeping input for the week. Nudge Peter: "percentages need your eyes."
-5. **Payroll prep (current method).** Until the named-worker roster lands (Step 2), use the CSV's Hours column per entry plus Mike's descriptions to attribute reg/OT. Keep a consistent naming habit with Mike now ("6 labourers × 8 reg + 2 OT") — it becomes the roster data later.
+2. **Fixes on request.** Mike can't delete — if he flags a duplicate or typo, you (or Peter) remove it. You don't patrol his entries; you correct what he reports.
+3. **Papers.** Supplier invoices go in **📂 Papers → Invoices & receipts**; signed extras and contracts in their folders.
+4. **Friday books (15 min).** Open **👀 Where am I?**: Mon–Fri list complete, tap **📊 Save the spreadsheet (CSV)** — that's your bookkeeping input for the week, hours column included.
+5. **Payroll prep (current method).** Until the named-worker roster lands, use the CSV's Hours column plus Mike's descriptions to attribute reg/OT. Keep the naming habit consistent with Mike now ("6 labourers × 8 reg + 2 OT") — it becomes roster data later.
 
 ### PETER (Owner — 5 minutes a day, 15 on Friday)
 
