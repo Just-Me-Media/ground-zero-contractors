@@ -36,6 +36,13 @@ function fileIcon(name) {
   return '📎'
 }
 
+// Browsers can only render images + PDFs inline. Spreadsheets/Word docs
+// silently do nothing in a preview frame, so offer Download instead.
+function canPreviewInline(name) {
+  const ext = name.split('.').pop().toLowerCase()
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(ext)
+}
+
 function getFolderIcon(folderName) {
   const f = folderName.toLowerCase()
   if (f.includes('quote')) return '📊'
@@ -442,23 +449,26 @@ export default function FileDropbox({ projectId, folders }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: 6, borderTop: '1px solid #f0eee6', paddingTop: 8 }}>
-                  <button
-                    onClick={() => handlePreview(file)}
-                    style={{
-                      flex: 1, background: '#fff', border: '1px solid #d8d5cb',
-                      borderRadius: 4, padding: '5px 8px', fontSize: '0.75rem',
-                      fontWeight: 600, color: '#57544c', cursor: 'pointer'
-                    }}
-                  >
-                    Preview
-                  </button>
+                  {canPreviewInline(file.name) && (
+                    <button
+                      onClick={() => handlePreview(file)}
+                      style={{
+                        flex: 1, background: '#fff', border: '1px solid #d8d5cb',
+                        borderRadius: 4, padding: '5px 8px', fontSize: '0.75rem',
+                        fontWeight: 600, color: '#57544c', cursor: 'pointer'
+                      }}
+                    >
+                      Preview
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDownload(file)}
                     style={{
-                      flex: 1, background: '#e8590c', border: 'none',
+                      flex: 2, background: '#e8590c', border: 'none',
                       borderRadius: 4, padding: '5px 8px', fontSize: '0.75rem',
                       fontWeight: 600, color: '#fff', cursor: 'pointer'
                     }}
+                    title={canPreviewInline(file.name) ? 'Download this file' : 'Spreadsheets and Word docs open via Download, not Preview'}
                   >
                     Download
                   </button>

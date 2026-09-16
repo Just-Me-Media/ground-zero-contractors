@@ -369,6 +369,24 @@ export default function JobCosting() {
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 500)
   }
 
+  // Blank daily sheet for the field: one row per bid line, opens in Excel.
+  // Offline backup only — same-day phone entry is the primary method.
+  function handleBlankSheet() {
+    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const out = [
+      `${project?.name || 'Job'} — DAILY FIELD SHEET (fill one per day, or enter straight in the app)`,
+      ['Date (YYYY-MM-DD)', 'Bid line (do not rename)', 'What happened today', 'How many', 'Counted in', 'Price each $', 'OR receipt total $', 'Hours (labour)', 'Receipt / note'].map(esc).join(','),
+    ]
+    bidItems.forEach(b => out.push(['', b.item, '', '', b.unit || '', '', '', '', ''].map(esc).join(',')))
+    const blob = new Blob([out.join('\n')], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `${(project?.name || 'job').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-daily-sheet.csv`
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 500)
+  }
+
   // ---------- PAPERS (bid docs / contract / invoices & receipts) ----------
   const DOC_BUCKET = 'project-files'
   const docPath = f => `${id}/Costing - ${docFolder}/${f}`
@@ -663,6 +681,7 @@ export default function JobCosting() {
             <div style={S.crewNote}>👷 <strong>Peter — skip this tab.</strong> Mike / Hanna: log every day Mon–Fri — guys & hours, fuel litres + price that day, dirt in/out, meals with receipts, subs.</div>
             <h2 style={{ fontSize: 24, margin: '12px 0 6px' }}>🧾 Log what got spent</h2>
             <p style={S.p}>Fill what you know. <strong>Either</strong> quantity + price each (e.g. 400 litres at $1.72) <strong>or</strong> just the total dollars off the receipt (e.g. $84 lunch). The Final screen updates by itself.</p>
+            <button onClick={handleBlankSheet} style={S.bigWhite}>📥 Download blank daily sheet (for Excel / no-signal days)</button>
 
             {lastLogged && (
               <div style={S.loggedOk}>✓ Logged: {lastLogged.text}</div>
