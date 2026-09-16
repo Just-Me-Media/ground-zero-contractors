@@ -827,11 +827,27 @@ export default function JobCosting() {
                 </label>
               </div>
               <label style={S.flabel}>Which part of the bid is this for?
-                <select value={dForm.bid_item_id} onChange={e => setDForm({ ...dForm, bid_item_id: e.target.value })} style={S.finput}>
+                <select value={dForm.bid_item_id} onChange={e => {
+                  const nb = bidItems.find(b => String(b.id) === String(e.target.value))
+                  setDForm(f => ({
+                    ...f,
+                    bid_item_id: e.target.value,
+                    // Pre-fill the usual unit + rate from the bid line (setup-once
+                    // data). Mike only changes them when today was different.
+                    unit: nb?.unit || f.unit,
+                    rate: nb ? String(nb.unit_cost ?? '') : f.rate,
+                  }))
+                }} style={S.finput}>
                   <option value="">Not sure / general</option>
                   {bidItems.map(b => <option key={b.id} value={b.id}>{catEmoji(b.category)} {b.item}</option>)}
                 </select>
               </label>
+              {(() => {
+                const linked = bidItems.find(b => String(b.id) === String(dForm.bid_item_id))
+                return linked ? (
+                  <p style={S.small}>Usual: {linked.qty} {linked.unit} @ {moneyExact(num(linked.unit_cost))} each (from the bid — only change it below if today was different).</p>
+                ) : null
+              })()}
               <label style={S.flabel}>What was it? (plain words)
                 <input placeholder="e.g. Diesel fill-up, 2 crew days, 6 loads out, crew lunches" value={dForm.description} onChange={e => setDForm({ ...dForm, description: e.target.value })} style={S.finput} />
               </label>
