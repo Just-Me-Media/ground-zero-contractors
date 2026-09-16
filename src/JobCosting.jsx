@@ -99,8 +99,13 @@ export default function JobCosting() {
 
   // Daily form — crew uses this, not Peter (proper qty/rate/hours entry)
   const today = todayLocal()
-  const [dForm, setDForm] = useState({ date: today, bid_item_id: '', description: '', qty: '', unit: 'loads', rate: '', total: '', hours: '', receipt_notes: '' })
+  const [dForm, setDForm] = useState({ date: today, bid_item_id: '', description: '', qty: '', unit: 'loads', rate: '', total: '', hours: '', ot: '', worker: '', receipt_notes: '' })
   const [lastLogged, setLastLogged] = useState(null)
+  // True once supabase/costing_step2_exports.sql has been run (worker + hours_ot cols)
+  const [hasPayCols, setHasPayCols] = useState(true)
+  // Export date range — defaults to the current Mon–Fri pay week
+  const [expFrom, setExpFrom] = useState('')
+  const [expTo, setExpTo] = useState('')
 
   // Share outputs (Peter)
   const [copied, setCopied] = useState(false)
@@ -126,16 +131,47 @@ export default function JobCosting() {
       setBidItems(bids || [])
       setCosts(ents || [])
       setUseLocal(false)
+      // Probe Step-2 payroll columns; export buttons adapt if missing
+      const probe = await supabase.from('cost_entries').select('worker,hours_ot').limit(1)
+      setHasPayCols(!probe.error)
     } catch {
       setBidItems(lsLoad(id, 'bid_items'))
       setCosts(lsLoad(id, 'cost_entries'))
       setUseLocal(true)
     }
+    // Default export range = current Mon–Fri
+    const now = new Date()
+    const dow = (now.getDay() + 6) % 7
+    const mon = new Date(now); mon.setDate(now.getDate() - dow)
+    const fri = new Date(mon); fri.setDate(mon.getDate() + 4)
+    setExpFrom(f => f || fmtLocal(mon))
+    setExpTo(f => f || fmtLocal(fri))
     setLoading(false)
   }
 
   async function persistBid(rows) { setBidItems(rows); if (useLocal) lsSave(id, 'bid_items', rows) }
   async function persistCosts(rows) { setCosts(rows); if (useLocal) lsSave(id, 'cost_entries', rows) }
+
+  // Insert cost rows. If the Step-2 payroll columns don't exist yet (migration
+  // not run), retry without them so logging never breaks.
+  const stripPayCols = r => {
+    const { worker, hours_ot, ...rest } = r
+    void worker; void hours_ot
+    return rest
+  }
+  async function insertCosts(rows) {
+    if (useLocal) {
+      persistCosts([...rows.map(r => ({ ...r, id: uid(), worker: r.worker || '', hours_ot: r.hours_ot || 0 })), ...costs])
+      return { data: rows }
+    }
+    let res = await supabase.from('cost_entries').insert(rows).select()
+    if (res.error) {
+      res = await supabase.from('cost_entries').insert(rows.map(stripPayCols)).select()
+      if (!res.error) setHasPayCols(false)
+    }
+    if (!res.error && res.data) setCosts(prev => [...res.data, ...prev])
+    return res
+  }
 
   // ---------- MATH (same as before, just hidden from Peter) ----------
   // Contingency IS counted (1c): each line holds back bid-cost × contingency %
@@ -296,16 +332,14 @@ export default function JobCosting() {
       unit: useRate ? (dForm.unit || '') : '',
       unit_actual: useRate ? num(dForm.rate) : lineTotal,
       hours: num(dForm.hours),
+      hours_ot: num(dForm.ot),
+      worker: (dForm.worker || '').trim(),
       receipt_notes: dForm.receipt_notes || '',
     }
-    if (useLocal) persistCosts([{ ...row, id: uid() }, ...costs])
-    else {
-      const { data } = await supabase.from('cost_entries').insert(row).select().single()
-      if (data) setCosts(prev => [data, ...prev])
-    }
+    await insertCosts([row])
     setLastLogged({ when: new Date(), text: `${dForm.description.trim()} — ${money(lineTotal)} on ${dForm.date}` })
-    // Keep day + bid line for fast multi-line entry, clear the rest
-    setDForm(f => ({ ...f, description: '', qty: '', rate: '', total: '', hours: '', receipt_notes: '' }))
+    // Keep day + bid line + worker for fast multi-line entry, clear the rest
+    setDForm(f => ({ ...f, description: '', qty: '', rate: '', total: '', hours: '', ot: '', receipt_notes: '' }))
   }
 
   async function deleteCost(costId) {
@@ -360,10 +394,10 @@ export default function JobCosting() {
     ].map(esc).join(',')))
     out.push('')
     out.push('DAILY SPENDING')
-    out.push(['Date', 'Bid line', 'Description', 'Qty', 'Unit', 'Rate', 'Total', 'Hours', 'Receipt/note'].map(esc).join(','))
+    out.push(['Date', 'Worker', 'Bid line', 'Description', 'Qty', 'Unit', 'Rate', 'Total', 'Reg hours', 'OT hours', 'Receipt/note'].map(esc).join(','))
     costs.forEach(c => {
       const linked = bidItems.find(b => String(b.id) === String(c.bid_item_id))
-      out.push([c.date, linked ? linked.item : '', c.description, c.qty, c.unit || '', c.unit_actual, num(c.qty) * num(c.unit_actual), c.hours || '', c.receipt_notes || ''].map(esc).join(','))
+      out.push([c.date, c.worker || '', linked ? linked.item : '', c.description, c.qty, c.unit || '', c.unit_actual, num(c.qty) * num(c.unit_actual), c.hours || '', c.hours_ot || '', c.receipt_notes || ''].map(esc).join(','))
     })
     out.push('')
     out.push(['Bid total', money(bidTotals.bill), 'Bid cost', money(bidTotals.cost), 'Safety buffer', money(bidTotals.reserve), 'Left', money(bidTotals.margin), 'Spent', money(totalActual), 'Job %', Math.round(overallPct), winning ? 'WINNING' : 'LOSING', money(forecastProfit)].map(esc).join(','))
@@ -418,9 +452,9 @@ export default function JobCosting() {
     const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`
     const out = [
       `${project?.name || 'Job'} — DAILY FIELD SHEET (fill one per day, or enter straight in the app)`,
-      ['Date (YYYY-MM-DD)', 'Bid line (do not rename)', 'What happened today', 'How many', 'Counted in', 'Price each $', 'OR receipt total $', 'Hours (labour)', 'Receipt / note'].map(esc).join(','),
+      ['Date (YYYY-MM-DD)', 'Worker (name)', 'Bid line (do not rename)', 'What happened today', 'How many', 'Counted in', 'Price each $', 'OR receipt total $', 'Hours (reg)', 'OT hours', 'Receipt / note'].map(esc).join(','),
     ]
-    bidItems.forEach(b => out.push(['', b.item, '', '', b.unit || '', '', '', '', ''].map(esc).join(',')))
+    bidItems.forEach(b => out.push(['', '', b.item, '', '', b.unit || '', '', '', '', '', ''].map(esc).join(',')))
     const blob = new Blob([out.join('\n')], { type: 'text/csv' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
@@ -484,7 +518,13 @@ export default function JobCosting() {
         const cDate = col(['date']), cLine = col(['bidline', 'bid']), cDesc = col(['whathappened', 'what', 'description'])
         const cQty = col(['howmany', 'qty', 'quantity']), cUnit = col(['countedin', 'unit'])
         const cRate = col(['priceeach', 'rate', 'price']), cTotal = col(['receipttotal', 'total'])
-        const cHours = col(['hours']), cNote = col(['receipt', 'note'])
+        // Robust hour matching: OT column first, then reg-hours = first 'hours' header that isn't OT
+        const cOT = col(['overtime', 'othours', 'oth'])
+        let cHours = col(['reghours', 'regularhours'])
+        if (cHours < 0) cHours = headers.findIndex((h, i) => i !== cOT && h.includes('hours'))
+        // NOTE: match 'worker'/'employee' only — 'name' would false-match "Bid line (do not rename)"
+        const cWorker = col(['worker', 'employee'])
+        const cNote = col(['receipt', 'note'])
         if (cDate < 0) throw new Error('no Date column found')
         const parsed = []
         for (let i = hi + 1; i < rows.length; i++) {
@@ -497,6 +537,8 @@ export default function JobCosting() {
           const rate = cRate >= 0 ? num(r[cRate]) : 0
           const total = cTotal >= 0 ? num(r[cTotal]) : 0
           const hours = cHours >= 0 ? num(r[cHours]) : 0
+          const ot = cOT >= 0 ? num(r[cOT]) : 0
+          const worker = cWorker >= 0 ? (r[cWorker] || '').trim().slice(0, 80) : ''
           const note = cNote >= 0 ? (r[cNote] || '').trim() : ''
           const lineTotal = (qty && rate) ? qty * rate : total
           if (!date && !lineName && !desc && !lineTotal) continue // blank row
@@ -504,7 +546,7 @@ export default function JobCosting() {
           const linked = lineName ? bidItems.find(b => b.item.toLowerCase() === lineName.toLowerCase()) : null
           parsed.push({
             key: i, date, lineName, bidId: linked ? linked.id : (lineName ? null : (bidItems[0]?.id || null)),
-            desc: desc || lineName, qty, unit, rate, total, hours, note, lineTotal,
+            desc: desc || lineName, qty, unit, rate, total, hours, ot, worker, note, lineTotal,
             ok: okDate && lineTotal > 0 && (linked || !lineName),
           })
         }
@@ -534,21 +576,80 @@ export default function JobCosting() {
         unit: useRate ? (r.unit || '') : '',
         unit_actual: useRate ? r.rate : r.lineTotal,
         hours: r.hours || 0,
-        receipt_notes: (r.note || 'imported sheet').slice(0, 200),
+        hours_ot: r.ot || 0,
+        worker: (r.worker || '').slice(0, 80),
+        receipt_notes: ((r.note || 'imported sheet') + '').slice(0, 200),
       }
     })
-    if (useLocal) {
-      persistCosts([...rows.map(r => ({ ...r, id: uid() })), ...costs])
-    } else {
-      const { data, error } = await supabase.from('cost_entries').insert(rows).select()
-      if (!error && data) setCosts(prev => [...data, ...prev])
-    }
+    const res = await insertCosts(rows)
+    if (res.error) { setImportError('Import failed: ' + (res.error.message || 'try again')); setImporting(false); return }
     const sum = good.reduce((s, r) => s + r.lineTotal, 0)
     const days = [...new Set(good.map(r => r.date))].join(', ')
     setLastLogged({ when: new Date(), text: `Sheet import: ${good.length} entries, ${money(sum)} (${days})` })
     setImportRows(null)
     setImporting(false)
   }
+
+  // ---------- PAYROLL & BOOKS EXPORTS (Hanna) ----------
+  // Sage 50 Canada timesheet import: required headers Name, Date, Income;
+  // optional Hours, Project, Comment. Dates YYYY-MM-DD, hours decimal.
+  // Reg and OT go as separate Income rows. Income names MUST match the Income
+  // records in their Sage company — confirm "Regular"/"Overtime" with payroll.
+  const SAGE_REG = 'Regular'
+  const SAGE_OT = 'Overtime'
+
+  function exportRange() {
+    return costs.filter(c => (!expFrom || c.date >= expFrom) && (!expTo || c.date <= expTo))
+  }
+
+  function downloadCSV(filename, text) {
+    const blob = new Blob([text], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 500)
+  }
+
+  function handleSageExport() {
+    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const out = [['Name', 'Date', 'Income', 'Hours', 'Project', 'Comment'].map(esc).join(',')]
+    exportRange().forEach(c => {
+      const worker = (c.worker || '').trim()
+      if (num(c.hours) > 0) out.push([worker, c.date, SAGE_REG, c.hours, project?.name || '', c.description].map(esc).join(','))
+      if (num(c.hours_ot) > 0) out.push([worker, c.date, SAGE_OT, c.hours_ot, project?.name || '', c.description].map(esc).join(','))
+    })
+    downloadCSV(`${(project?.name || 'job').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-sage-timesheet.csv`, out.join('\n'))
+  }
+
+  // QuickBooks time: Employee, Date, Pay Type, Hours, Job, Notes. Fits QBO
+  // weekly timesheets (copy/paste or Transaction Pro), QB Time manual import,
+  // and gives the accountant clean pay-type splits either way.
+  function handleQBTimeExport() {
+    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const out = [['Employee', 'Date', 'Pay Type', 'Hours', 'Job', 'Notes'].map(esc).join(',')]
+    exportRange().forEach(c => {
+      const worker = (c.worker || '').trim()
+      if (num(c.hours) > 0) out.push([worker, c.date, 'Regular', c.hours, project?.name || '', c.description].map(esc).join(','))
+      if (num(c.hours_ot) > 0) out.push([worker, c.date, 'Overtime', c.hours_ot, project?.name || '', c.description].map(esc).join(','))
+    })
+    downloadCSV(`${(project?.name || 'job').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-qb-time.csv`, out.join('\n'))
+  }
+
+  // QuickBooks bookkeeping: every dated cost line with category + receipt ref.
+  // Upload via Banking → Upload from file, or hand to the accountant as-is.
+  function handleQBExpensesExport() {
+    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const out = [['Date', 'Description', 'Category', 'Bid Line', 'Amount', 'Job', 'Receipt', 'Worker'].map(esc).join(',')]
+    exportRange().forEach(c => {
+      const linked = bidItems.find(b => String(b.id) === String(c.bid_item_id))
+      out.push([c.date, c.description, c.category, linked ? linked.item : '', (num(c.qty) * num(c.unit_actual)).toFixed(2), project?.name || '', c.receipt_notes || '', c.worker || ''].map(esc).join(','))
+    })
+    downloadCSV(`${(project?.name || 'job').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-qb-expenses.csv`, out.join('\n'))
+  }
+
+  const exportUnnamed = exportRange().filter(c => (num(c.hours) > 0 || num(c.hours_ot) > 0) && !(c.worker || '').trim()).length
 
   // ---------- PAPERS (bid docs / contract / invoices & receipts) ----------
   const DOC_BUCKET = 'project-files'
@@ -770,6 +871,40 @@ export default function JobCosting() {
                 </div>
                 )}
 
+                {/* Payroll & books exports — Hanna (Peter too). Pick the pay week, download, import. */}
+                {canManage && (
+                <div style={S.card}>
+                  <h3 style={S.h3}>📤 Payroll & books — ready-made files</h3>
+                  <p style={S.small}>Pick the week (defaults to this Mon–Fri), download, and import straight into Sage or QuickBooks. No retyping.</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <label style={S.flabel}>From
+                      <input type="date" value={expFrom} onChange={e => setExpFrom(e.target.value)} style={S.finput} />
+                    </label>
+                    <label style={S.flabel}>To
+                      <input type="date" value={expTo} onChange={e => setExpTo(e.target.value)} style={S.finput} />
+                    </label>
+                  </div>
+                  {!hasPayCols && (
+                    <p style={{ fontSize: 15, color: '#a8380d', background: '#fff4e6', borderRadius: 8, padding: '10px 14px' }}>
+                      ⚠️ Worker names + OT need one database update first — run <strong>supabase/costing_step2_exports.sql</strong> in the SQL editor, then reload. Exports still work, but names/OT won't be saved until then.
+                    </p>
+                  )}
+                  {exportUnnamed > 0 && (
+                    <p style={{ fontSize: 15, color: '#a8380d' }}>⚠️ {exportUnnamed} hour {exportUnnamed === 1 ? 'entry' : 'entries'} in this range {exportUnnamed === 1 ? 'has' : 'have'} no worker name — Sage will reject {exportUnnamed === 1 ? 'it' : 'them'}. Add names on the Log tab first.</p>
+                  )}
+                  <div style={S.shareBtns}>
+                    <button onClick={handleSageExport} style={S.shareBtn}>🟢 Sage 50 timesheet</button>
+                    <button onClick={handleQBTimeExport} style={S.shareBtn}>🔵 QB hours</button>
+                    <button onClick={handleQBExpensesExport} style={S.shareBtn}>🧾 QB expenses</button>
+                  </div>
+                  <div style={{ fontSize: 14, color: '#6e6e66', lineHeight: 1.5 }}>
+                    <div><strong>Sage file →</strong> Sage 50 → File → Import/Export → Import Records → Timesheets. Names must already exist in Sage; Income columns use Regular / Overtime — confirm those exact Income names with payroll first.</div>
+                    <div style={{ marginTop: 4 }}><strong>QB hours →</strong> paste into a QBO weekly timesheet (or Transaction Pro / QB Time manual import): Employee, Date, Pay Type, Hours, Job.</div>
+                    <div style={{ marginTop: 4 }}><strong>QB expenses →</strong> Banking → Upload from file, or hand to the accountant as-is.</div>
+                  </div>
+                </div>
+                )}
+
                 {/* This week — plain list, not a grid of math */}
                 <div style={S.card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
@@ -971,10 +1106,10 @@ export default function JobCosting() {
                 {importRows.map(r => (
                   <div key={r.key} style={{ ...S.importRow, borderColor: r.ok && r.bidId ? '#2b8a3e' : '#c92a2a' }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700 }}>{r.desc || '(no description)'}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700 }}>{r.worker ? `${r.worker} — ` : ''}{r.desc || '(no description)'}</div>
                       <div style={{ fontSize: 14, color: '#6e6e66' }}>
                         {r.date || 'no date'} · {r.qty && r.rate ? `${r.qty} ${r.unit || ''} × $${r.rate}` : 'receipt total'} · <strong>{money(r.lineTotal)}</strong>
-                        {r.hours ? ` · ${r.hours} hrs` : ''}
+                        {r.hours ? ` · ${r.hours} reg` : ''}{r.ot ? ` · ${r.ot} OT` : ''}
                       </div>
                       {!r.ok && <div style={{ fontSize: 14, color: '#c92a2a', fontWeight: 700 }}>⚠️ {!/^\d{4}-\d{2}-\d{2}$/.test(r.date) ? 'bad date (use YYYY-MM-DD)' : r.lineTotal <= 0 ? 'no amount' : ''}</div>}
                       {r.ok && !r.bidId && (
@@ -1007,8 +1142,19 @@ export default function JobCosting() {
                 <label style={S.flabel}>Which day?
                   <input type="date" value={dForm.date} onChange={e => { setDForm({ ...dForm, date: e.target.value }); setLastLogged(null) }} style={{ ...S.finput, fontSize: 20 }} />
                 </label>
-                <label style={S.flabel}>Hours (if labour)
+                <label style={S.flabel}>Who did it? (name — for payroll)
+                  <input list="gz-workers" placeholder="e.g. Mike" value={dForm.worker} onChange={e => setDForm({ ...dForm, worker: e.target.value })} style={S.finput} />
+                  <datalist id="gz-workers">
+                    {[...new Set(costs.map(c => c.worker).filter(Boolean))].map(w => <option key={w} value={w} />)}
+                  </datalist>
+                </label>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <label style={S.flabel}>Regular hours
                   <input type="number" step="any" placeholder="e.g. 8" value={dForm.hours} onChange={e => setDForm({ ...dForm, hours: e.target.value })} style={S.finput} />
+                </label>
+                <label style={S.flabel}>OT hours
+                  <input type="number" step="any" placeholder="e.g. 2" value={dForm.ot} onChange={e => setDForm({ ...dForm, ot: e.target.value })} style={S.finput} />
                 </label>
               </div>
               <label style={S.flabel}>Which part of the bid is this for?
@@ -1061,7 +1207,7 @@ export default function JobCosting() {
                 <div style={S.preview}>
                   This entry = <strong>{money(dailyLineTotal())}</strong>
                   {num(dForm.qty) && num(dForm.rate) ? ` (${dForm.qty} ${dForm.unit || ''} × $${dForm.rate})` : ' (receipt total)'}
-                  {num(dForm.hours) ? ` · ${dForm.hours} hrs` : ''} on {dForm.date ? dayName(dForm.date) : '…'}
+                  {dForm.worker ? ` · ${dForm.worker}` : ''}{num(dForm.hours) ? ` · ${dForm.hours} reg` : ''}{num(dForm.ot) ? ` · ${dForm.ot} OT` : ''} on {dForm.date ? dayName(dForm.date) : '…'}
                 </div>
               )}
               <label style={S.flabel}>Receipt photo note / where's the receipt? (optional)
@@ -1076,10 +1222,10 @@ export default function JobCosting() {
             {costs.filter(c => c.date === dForm.date).map(c => (
               <div key={c.id} style={S.spendRow}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700 }}>{c.description}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>{c.worker ? `${c.worker} — ` : ''}{c.description}</div>
                   <div style={{ fontSize: 14, color: '#6e6e66' }}>
                     {c.qty && c.unit && c.unit_actual ? `${c.qty} ${c.unit} × $${c.unit_actual}` : 'Receipt total'}
-                    {c.hours ? ` · ${c.hours} hrs` : ''}{c.receipt_notes ? ` · 🧾 ${c.receipt_notes}` : ''}
+                    {c.hours ? ` · ${c.hours} reg` : ''}{c.hours_ot ? ` · ${c.hours_ot} OT` : ''}{c.receipt_notes ? ` · 🧾 ${c.receipt_notes}` : ''}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1094,8 +1240,8 @@ export default function JobCosting() {
             {costs.filter(c => c.date !== dForm.date).slice(0, 20).map(c => (
               <div key={c.id} style={S.spendRow}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700 }}>{c.description}</div>
-                  <div style={{ fontSize: 14, color: '#6e6e66' }}>{c.date}{c.receipt_notes ? ` · 🧾 ${c.receipt_notes}` : ''}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>{c.worker ? `${c.worker} — ` : ''}{c.description}</div>
+                  <div style={{ fontSize: 14, color: '#6e6e66' }}>{c.date}{c.hours ? ` · ${c.hours} reg` : ''}{c.hours_ot ? ` · ${c.hours_ot} OT` : ''}{c.receipt_notes ? ` · 🧾 ${c.receipt_notes}` : ''}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ fontSize: 19, fontWeight: 800 }}>{money(num(c.qty) * num(c.unit_actual))}</div>

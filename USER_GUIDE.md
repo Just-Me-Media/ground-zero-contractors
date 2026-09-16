@@ -134,7 +134,11 @@ You're not onsite, so you never audit Mike's entries — what he logged is what 
 1. **True costs (one-time per job, most important job on this list).** Open **📝 What we bid**. Every line flagged **⚠️ True cost needed** still shows the charge-out rate where the real cost belongs. Tap **✏️ Change** on each line and type what GZC actually pays (wages, rental rates, fuel cost). The amber ⏳ ESTIMATE banner disappears as you clear them — when it's gone, Peter's numbers are real.
 2. **Fixes on request.** Mike can't delete — if he flags a duplicate or typo, you (or Peter) remove it. You don't patrol his entries; you correct what he reports.
 3. **Papers.** Supplier invoices go in **📂 Papers → Invoices & receipts**; signed extras and contracts in their folders.
-4. **Friday books (15 min).** Open **👀 Where am I?**: Mon–Fri list complete, tap **📊 Save the spreadsheet (CSV)** — that's your bookkeeping input for the week, hours column included.
+4. **Friday books (15 min).** Open **👀 Where am I?**: Mon–Fri list complete. Then use the **📤 Payroll & books** panel: set the week range and download exactly what each system needs —
+   - **🟢 Sage 50 timesheet** → Sage 50 → File → Import/Export → Import Records → Timesheets. One row per person per day, Regular vs Overtime split, job name attached. Worker names must already exist in Sage with identical spelling; confirm the Income names "Regular"/"Overtime" match payroll's setup.
+   - **🔵 QB hours** → QBO weekly timesheet (or Transaction Pro / QB Time import): Employee, Date, Pay Type, Hours, Job.
+   - **🧾 QB expenses** → Banking → Upload from file, or straight to the accountant: every dated cost line with category, receipt ref, and worker.
+   - Any hour entry missing a worker name is flagged before you download — Sage rejects nameless rows, so add names on the Log tab first.
 5. **Payroll prep (current method).** Until the named-worker roster lands, use the CSV's Hours column plus Mike's descriptions to attribute reg/OT. Keep the naming habit consistent with Mike now ("6 labourers × 8 reg + 2 OT") — it becomes roster data later.
 
 ### PETER (Owner — 5 minutes a day, 15 on Friday)
