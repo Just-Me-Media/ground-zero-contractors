@@ -1,0 +1,17 @@
+{
+  "name": "c22-protection-phase1",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bill C-22 protection app — Phase 1: zero-central crypto core, ephemeral relay, onboarding guard",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test tests/kat.test.js tests/relay.test.js tests/egress.test.js",
+    "test:kat": "node --test tests/kat.test.js",
+    "test:relay": "node --test tests/relay.test.js",
+    "test:egress": "node --test tests/egress.test.js"
+  },
+  "dependencies": {
+    "libsodium-wrappers": "0.8.4",
+    "slip39": "0.1.9"
+  }
+}
