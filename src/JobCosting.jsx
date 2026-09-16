@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from './supabase'
 import { useAuth } from './AuthContext'
@@ -85,7 +85,7 @@ export default function JobCosting() {
   const [project, setProject] = useState(null)
   // Deep-linkable tabs: ?tab=bid lands straight on the bid sheet (badges link here).
   const initialTab = new URLSearchParams(location.search).get('tab')
-  const [tab, setTab] = useState(['where', 'bid', 'daily', 'papers'].includes(initialTab) ? initialTab : 'where') // Peter opens here. Always.
+  const [tab, setTab] = useState(['where', 'bid', 'daily', 'billed', 'papers'].includes(initialTab) ? initialTab : 'where') // Peter opens here. Always.
   const [bidItems, setBidItems] = useState([])
   const [costs, setCosts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -110,6 +110,13 @@ export default function JobCosting() {
   // Share outputs (Peter)
   const [copied, setCopied] = useState(false)
 
+  // Billed ledger — what we invoiced the client + holdback trail (Tank 210 style)
+  const [billed, setBilled] = useState([])
+  const [billedUnavailable, setBilledUnavailable] = useState(false)
+  const [billForm, setBillForm] = useState({ invoice_no: '', date: '', description: '', amount: '', holdback_held: '', holdback_released: '', paid: false, notes: '' })
+  const [editingBill, setEditingBill] = useState(null)
+  const [showBillForm, setShowBillForm] = useState(false)
+
   // Papers (bid docs, contract, invoices) — same storage bucket as the file vault
   const DOC_FOLDERS = ['Bid documents', 'Contract', 'Invoices & receipts']
   const [docFolder, setDocFolder] = useState(DOC_FOLDERS[0])
@@ -119,6 +126,7 @@ export default function JobCosting() {
   const [docError, setDocError] = useState(null)
 
   useEffect(() => { load() }, [id])
+  useEffect(() => { fetchBilled(useLocal) }, [fetchBilled, useLocal])
 
   async function load() {
     setLoading(true)
@@ -151,6 +159,21 @@ export default function JobCosting() {
 
   async function persistBid(rows) { setBidItems(rows); if (useLocal) lsSave(id, 'bid_items', rows) }
   async function persistCosts(rows) { setCosts(rows); if (useLocal) lsSave(id, 'cost_entries', rows) }
+  async function persistBilled(rows) { setBilled(rows); if (useLocal) lsSave(id, 'billed_invoices', rows) }
+
+  // Billed ledger fetch — graceful if costing_billed_ledger.sql hasn't been run yet
+  const fetchBilled = useCallback(async localMode => {
+    if (localMode) { setBilled(lsLoad(id, 'billed_invoices')); setBilledUnavailable(false); return }
+    try {
+      const { data, error } = await supabase.from('billed_invoices').select('*').eq('project_id', id).order('date')
+      if (error) throw error
+      setBilled(data || [])
+      setBilledUnavailable(false)
+    } catch {
+      setBilled([])
+      setBilledUnavailable(true)
+    }
+  }, [id])
 
   // Insert cost rows. If the Step-2 payroll columns don't exist yet (migration
   // not run), retry without them so logging never breaks.
@@ -351,6 +374,69 @@ export default function JobCosting() {
     }
   }
 
+  // ---------- BILLED ACTIONS ----------
+  const BLANK_BILL = { invoice_no: '', date: '', description: '', amount: '', holdback_held: '', holdback_released: '', paid: false, notes: '' }
+
+  async function saveBill(e) {
+    e.preventDefault()
+    if (!billForm.invoice_no.trim() || !billForm.date || !num(billForm.amount)) return
+    const row = {
+      project_id: id,
+      invoice_no: billForm.invoice_no.trim(),
+      date: billForm.date,
+      description: (billForm.description || '').trim(),
+      amount: num(billForm.amount),
+      holdback_held: num(billForm.holdback_held),
+      holdback_released: num(billForm.holdback_released),
+      paid: !!billForm.paid,
+      notes: billForm.notes || '',
+      sort_order: editingBill ? editingBill.sort_order : billed.length,
+    }
+    if (useLocal) {
+      if (editingBill) persistBilled(billed.map(b => b.id === editingBill.id ? { ...b, ...row } : b))
+      else persistBilled([...billed, { ...row, id: uid() }])
+    } else {
+      if (editingBill) {
+        const { data, error } = await supabase.from('billed_invoices').update(row).eq('id', editingBill.id).select().single()
+        if (!error && data) setBilled(prev => prev.map(b => b.id === editingBill.id ? data : b))
+      } else {
+        const { data, error } = await supabase.from('billed_invoices').insert(row).select().single()
+        if (!error && data) setBilled(prev => [...prev, data].sort((a, b) => String(a.date).localeCompare(String(b.date))))
+      }
+    }
+    setBillForm(BLANK_BILL)
+    setEditingBill(null)
+    setShowBillForm(false)
+  }
+
+  async function deleteBill(billId) {
+    if (!window.confirm('Remove this invoice from the ledger?')) return
+    if (useLocal) persistBilled(billed.filter(b => b.id !== billId))
+    else {
+      await supabase.from('billed_invoices').delete().eq('id', billId)
+      setBilled(prev => prev.filter(b => b.id !== billId))
+    }
+  }
+
+  function startEditBill(b) {
+    setEditingBill(b)
+    setBillForm({
+      invoice_no: b.invoice_no || '', date: b.date || '', description: b.description || '',
+      amount: String(b.amount ?? ''), holdback_held: String(b.holdback_held ?? ''),
+      holdback_released: String(b.holdback_released ?? ''), paid: !!b.paid, notes: b.notes || ''
+    })
+    setShowBillForm(true)
+  }
+
+  async function togglePaid(b) {
+    const paid = !b.paid
+    if (useLocal) persistBilled(billed.map(x => x.id === b.id ? { ...x, paid } : x))
+    else {
+      const { error } = await supabase.from('billed_invoices').update({ paid }).eq('id', b.id)
+      if (!error) setBilled(prev => prev.map(x => x.id === b.id ? { ...x, paid } : x))
+    }
+  }
+
   // ---------- SHARE OUTPUTS (Peter: copy / email / text / print / CSV) ----------
   const dayName = iso => {
     try { return new Date(iso + 'T12:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'short', day: 'numeric' }) } catch { return iso }
@@ -380,6 +466,12 @@ export default function JobCosting() {
     })
     if (over.length) { lines.push(''); lines.push('Over budget:'); over.forEach(o => lines.push('  ⚠️ ' + o)) }
     if (under.length) { lines.push(''); lines.push('Under budget:'); under.forEach(u => lines.push('  👍 ' + u)) }
+    if (billed.length) {
+      lines.push('')
+      lines.push(`Billed the customer: ${money(billedTotals.invoiced)} (${billed.length} invoices)`)
+      lines.push(`Holdback still with client: ${money(billedTotals.outstanding)}`)
+      lines.push(`Profit so far (billed − spent): ${money(profitToDate)}`)
+    }
     return lines.join('\n')
   }
 
@@ -401,6 +493,13 @@ export default function JobCosting() {
     })
     out.push('')
     out.push(['Bid total', money(bidTotals.bill), 'Bid cost', money(bidTotals.cost), 'Safety buffer', money(bidTotals.reserve), 'Left', money(bidTotals.margin), 'Spent', money(totalActual), 'Job %', Math.round(overallPct), winning ? 'WINNING' : 'LOSING', money(forecastProfit)].map(esc).join(','))
+    if (billed.length) {
+      out.push('')
+      out.push('BILLED TO CLIENT')
+      out.push(['Invoice #', 'Date', 'Description', 'Amount', 'Holdback held', 'Holdback released', 'Paid', 'Note'].map(esc).join(','))
+      billed.forEach(b => out.push([b.invoice_no, b.date, b.description, b.amount, b.holdback_held, b.holdback_released, b.paid ? 'yes' : 'no', b.notes || ''].map(esc).join(',')))
+      out.push(['Billed total', money(billedTotals.invoiced), 'Holdback still held', money(billedTotals.outstanding), 'Profit so far (billed - spent)', money(profitToDate)].map(esc).join(','))
+    }
     return out.join('\n')
   }
 
@@ -651,6 +750,21 @@ export default function JobCosting() {
 
   const exportUnnamed = exportRange().filter(c => (num(c.hours) > 0 || num(c.hours_ot) > 0) && !(c.worker || '').trim()).length
 
+  // ---------- BILLED MATH ----------
+  const billedTotals = useMemo(() => {
+    let invoiced = 0, held = 0, released = 0, paidAmt = 0
+    billed.forEach(b => {
+      invoiced += num(b.amount)
+      held += num(b.holdback_held)
+      released += num(b.holdback_released)
+      if (b.paid) paidAmt += num(b.amount)
+    })
+    return { invoiced, held, released, outstanding: held - released, paidAmt }
+  }, [billed])
+  // Reconstruction profit: what we billed minus what we spent. Real once the
+  // cost side is fully entered; until then it reads high (costs missing).
+  const profitToDate = billedTotals.invoiced - totalActual
+
   // ---------- PAPERS (bid docs / contract / invoices & receipts) ----------
   const DOC_BUCKET = 'project-files'
   const docPath = f => `${id}/Costing - ${docFolder}/${f}`
@@ -751,8 +865,8 @@ export default function JobCosting() {
       </div>
 
       <div style={S.body}>
-        {/* Big plain-English tabs — 4 choices, huge touch targets */}
-        <div style={{ ...S.tabs, gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+        {/* Big plain-English tabs — 5 choices, huge touch targets */}
+        <div style={{ ...S.tabs, gridTemplateColumns: 'repeat(5,1fr)' }}>
           <button onClick={() => setTab('where')} style={{ ...S.tab, ...(tab === 'where' ? S.tabActive : {}) }}>
             <span style={{ fontSize: 22 }}>👀</span><span>Where am I?</span>
           </button>
@@ -761,6 +875,9 @@ export default function JobCosting() {
           </button>
           <button onClick={() => setTab('daily')} style={{ ...S.tab, ...(tab === 'daily' ? S.tabActive : {}) }}>
             <span style={{ fontSize: 22 }}>🧾</span><span>Log spending</span>
+          </button>
+          <button onClick={() => setTab('billed')} style={{ ...S.tab, ...(tab === 'billed' ? S.tabActive : {}) }}>
+            <span style={{ fontSize: 22 }}>💵</span><span>What we billed</span>
           </button>
           <button onClick={() => setTab('papers')} style={{ ...S.tab, ...(tab === 'papers' ? S.tabActive : {}) }}>
             <span style={{ fontSize: 22 }}>📂</span><span>Papers</span>
@@ -854,6 +971,40 @@ export default function JobCosting() {
                     <div style={S.bigSub}>Earned {money(earned)} of {money(bidTotals.bill)}</div>
                   </div>
                 </div>
+
+                {/* Billed vs spent — the reconstruction/profit strip. Shows whenever invoices exist. */}
+                {(billed.length > 0 || billedUnavailable) && (
+                <div style={S.card}>
+                  <h3 style={S.h3}>💵 What we billed vs what we spent</h3>
+                  {billedUnavailable ? (
+                    <p style={S.p}>The billed ledger needs one database update — run <strong>supabase/costing_billed_ledger.sql</strong>, then reload.</p>
+                  ) : (
+                    <>
+                      <div style={S.threeCards}>
+                        <div style={S.bigCard}>
+                          <div style={S.bigLabel}>🧾 Billed the customer</div>
+                          <div style={S.bigNum}>{money(billedTotals.invoiced)}</div>
+                          <div style={S.bigSub}>{billed.length} invoice{billed.length === 1 ? '' : 's'}</div>
+                        </div>
+                        <div style={S.bigCard}>
+                          <div style={S.bigLabel}>🔒 Holdback still held</div>
+                          <div style={{ ...S.bigNum, color: billedTotals.outstanding > 0 ? '#a8380d' : '#2b8a3e' }}>{money(billedTotals.outstanding)}</div>
+                          <div style={S.bigSub}>Held {money(billedTotals.held)} · released {money(billedTotals.released)}</div>
+                        </div>
+                        <div style={S.bigCard}>
+                          <div style={S.bigLabel}>💰 Profit so far</div>
+                          <div style={{ ...S.bigNum, color: profitToDate >= 0 ? '#2b8a3e' : '#c92a2a' }}>{money(profitToDate)}</div>
+                          <div style={S.bigSub}>Billed minus logged costs{!hasBid ? ' · no bid on file' : ''}</div>
+                        </div>
+                      </div>
+                      {!hasBid && (
+                        <p style={S.small}>Reconstruction mode: no bid lines on this job, so profit = billed − logged costs. Add every cost and this number becomes the true job profit.</p>
+                      )}
+                      <button onClick={() => setTab('billed')} style={S.bigWhite}>Open the billed ledger →</button>
+                    </>
+                  )}
+                </div>
+                )}
 
                 {/* Send / share this update — Peter & Hanna only */}
                 {canManage && (
@@ -1249,6 +1400,86 @@ export default function JobCosting() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ================= WHAT WE BILLED (client invoices + holdback) ================= */}
+        {tab === 'billed' && (
+          <div style={S.card}>
+            <h2 style={{ fontSize: 24, margin: '0 0 6px' }}>💵 What did we bill the customer?</h2>
+            <p style={S.p}>Every invoice sent on this job, with the 10% holdback trail: held back, released back to us, and what's still sitting with the client.</p>
+            {billedUnavailable ? (
+              <p style={S.p}>Needs one database update first — run <strong>supabase/costing_billed_ledger.sql</strong> in the SQL editor, then reload this page.</p>
+            ) : (
+              <>
+                <div style={S.totalsBar}>
+                  <div>Billed <strong>{money(billedTotals.invoiced)}</strong> across {billed.length} invoice{billed.length === 1 ? '' : 's'}</div>
+                  <div>Holdback held <strong>{money(billedTotals.held)}</strong> · released <strong>{money(billedTotals.released)}</strong></div>
+                  <div style={{ color: billedTotals.outstanding > 0 ? '#a8380d' : '#2b8a3e' }}>Still with the client: <strong>{money(billedTotals.outstanding)}</strong></div>
+                  <div>Paid to us <strong>{money(billedTotals.paidAmt)}</strong></div>
+                </div>
+
+                {canEdit && !showBillForm ? (
+                  <button onClick={() => { setEditingBill(null); setBillForm(BLANK_BILL); setShowBillForm(true) }} style={S.bigWhite}>＋ Log an invoice we sent</button>
+                ) : canEdit ? (
+                  <form onSubmit={saveBill} style={S.stackForm}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <label style={S.flabel}>Invoice #
+                        <input placeholder="e.g. GZC-2103" value={billForm.invoice_no} onChange={e => setBillForm({ ...billForm, invoice_no: e.target.value })} style={S.finput} />
+                      </label>
+                      <label style={S.flabel}>Invoice date
+                        <input type="date" value={billForm.date} onChange={e => setBillForm({ ...billForm, date: e.target.value })} style={S.finput} />
+                      </label>
+                    </div>
+                    <label style={S.flabel}>What was it for?
+                      <input placeholder="e.g. Excavate / haul / dispose Jul 10–17" value={billForm.description} onChange={e => setBillForm({ ...billForm, description: e.target.value })} style={S.finput} />
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                      <label style={S.flabel}>Amount billed ($)
+                        <input type="number" step="any" placeholder="e.g. 391425.99" value={billForm.amount} onChange={e => setBillForm({ ...billForm, amount: e.target.value })} style={S.finput} />
+                      </label>
+                      <label style={S.flabel}>Holdback held ($)
+                        <input type="number" step="any" placeholder="e.g. 39142.60" value={billForm.holdback_held} onChange={e => setBillForm({ ...billForm, holdback_held: e.target.value })} style={S.finput} />
+                      </label>
+                      <label style={S.flabel}>Holdback released ($)
+                        <input type="number" step="any" placeholder="0 unless this IS the release" value={billForm.holdback_released} onChange={e => setBillForm({ ...billForm, holdback_released: e.target.value })} style={S.finput} />
+                      </label>
+                    </div>
+                    <label style={{ ...S.flabel, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <input type="checkbox" checked={billForm.paid} onChange={e => setBillForm({ ...billForm, paid: e.target.checked })} style={{ width: 24, height: 24 }} />
+                      Paid in full
+                    </label>
+                    <label style={S.flabel}>Note (optional)
+                      <input placeholder="e.g. change order, release invoice" value={billForm.notes} onChange={e => setBillForm({ ...billForm, notes: e.target.value })} style={S.finput} />
+                    </label>
+                    <button type="submit" style={S.bigOrange}>{editingBill ? 'Save changes ✓' : 'Add it to the ledger ✓'}</button>
+                    <button type="button" onClick={() => { setShowBillForm(false); setEditingBill(null); setBillForm(BLANK_BILL) }} style={S.linkBtn}>Cancel</button>
+                  </form>
+                ) : null}
+
+                {billed.map(b => (
+                  <div key={b.id} style={S.bidRow}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: 17, fontWeight: 800 }}>🧾 {b.invoice_no} <span style={{ fontWeight: 400, color: '#8a8578' }}>{b.date}</span></div>
+                      <span style={{ ...S.statusPill, background: b.paid ? '#d3f9d6' : '#f1f0eb', color: b.paid ? '#2b8a3e' : '#6e6e66' }}>{b.paid ? 'Paid ✓' : 'Unpaid'}</span>
+                    </div>
+                    <div style={{ fontSize: 15, color: '#57544c', marginTop: 2 }}>{b.description}</div>
+                    <div style={{ fontSize: 16, marginTop: 4 }}>
+                      Billed <strong>{money(num(b.amount))}</strong>
+                      {num(b.holdback_held) > 0 && <span> · held back <strong>{money(num(b.holdback_held))}</strong></span>}
+                      {num(b.holdback_released) > 0 && <span> · released <strong>{money(num(b.holdback_released))}</strong></span>}
+                    </div>
+                    {b.notes ? <div style={{ fontSize: 14, color: '#8a8578', fontStyle: 'italic' }}>📝 {b.notes}</div> : null}
+                    <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+                      {canEdit && <button onClick={() => togglePaid(b)} style={S.navBtn}>{b.paid ? 'Mark unpaid' : 'Mark paid ✓'}</button>}
+                      {canEdit && <button onClick={() => startEditBill(b)} style={S.navBtn}>✏️ Change</button>}
+                      {canManage && <button onClick={() => deleteBill(b.id)} style={S.navBtn}>🗑 Remove</button>}
+                    </div>
+                  </div>
+                ))}
+                {billed.length === 0 && <p style={S.p}>No invoices logged yet. Add the first one above.</p>}
+              </>
+            )}
           </div>
         )}
 
