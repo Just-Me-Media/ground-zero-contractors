@@ -1,6 +1,21 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from './supabase'
+import { useAuth } from './AuthContext'
+
+// Local calendar date (YYYY-MM-DD). Never use toISOString() for day logic —
+// it runs in UTC and shifts the day during Ontario evenings.
+function fmtLocal(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+function todayLocal() { return fmtLocal(new Date()) }
+
+// Lines seeded from a charge-out sheet carry this marker until someone who
+// knows the true internal cost replaces it (see 1d true-cost-missing state).
+const TRUE_COST_NEEDLE = 'TRUE GZC COST STILL NEEDED'
 
 // Plain-English categories with emoji so Peter can scan, not read
 const CATEGORIES = [
@@ -58,6 +73,12 @@ const PCT_STEPS = [
 export default function JobCosting() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { userRole } = useAuth()
+  // Roles: full/admin (Peter, Hanna) manage everything. limited (Mike) may
+  // only ADD daily entries + upload papers — never delete, never touch the bid
+  // or the % buttons. client sees a redacted $-free view (rendered below).
+  const canManage = userRole === 'admin' || userRole === 'full'
+  const isClient = userRole === 'client'
   const [project, setProject] = useState(null)
   const [tab, setTab] = useState('where') // Peter opens here. Always.
   const [bidItems, setBidItems] = useState([])
@@ -72,7 +93,7 @@ export default function JobCosting() {
   const [showBidForm, setShowBidForm] = useState(false)
 
   // Daily form — crew uses this, not Peter (proper qty/rate/hours entry)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
   const [dForm, setDForm] = useState({ date: today, bid_item_id: '', description: '', qty: '', unit: 'loads', rate: '', total: '', hours: '', receipt_notes: '' })
   const [lastLogged, setLastLogged] = useState(null)
 
@@ -112,10 +133,17 @@ export default function JobCosting() {
   async function persistCosts(rows) { setCosts(rows); if (useLocal) lsSave(id, 'cost_entries', rows) }
 
   // ---------- MATH (same as before, just hidden from Peter) ----------
+  // Contingency IS counted (1c): each line holds back bid-cost × contingency %
+  // as a safety buffer. Margin and forecast are net of it.
   const bidTotals = useMemo(() => {
-    let cost = 0, bill = 0
-    bidItems.forEach(b => { cost += num(b.qty) * num(b.unit_cost); bill += num(b.qty) * num(b.unit_billable) })
-    return { cost, bill, margin: bill - cost }
+    let cost = 0, bill = 0, reserve = 0
+    bidItems.forEach(b => {
+      const c = num(b.qty) * num(b.unit_cost)
+      cost += c
+      bill += num(b.qty) * num(b.unit_billable)
+      reserve += c * (num(b.contingency_pct) / 100)
+    })
+    return { cost, bill, reserve, margin: bill - cost - reserve }
   }, [bidItems])
 
   const actualByBid = useMemo(() => {
@@ -135,8 +163,15 @@ export default function JobCosting() {
   const remaining = useMemo(() => bidItems.reduce((s, b) =>
     s + num(b.qty) * num(b.unit_cost) * (1 - num(b.pct_complete) / 100), 0), [bidItems])
   const forecastCost = totalActual + remaining
-  const forecastProfit = bidTotals.bill - forecastCost
+  const forecastProfit = bidTotals.bill - forecastCost - bidTotals.reserve
   const daysWithCosts = useMemo(() => new Set(costs.map(c => c.date)).size, [costs])
+
+  // Lines whose true internal cost is still unknown (seeded from charge-out
+  // rates). Until cleared, every dollar figure on screen is an estimate (1d).
+  const missingTrueCost = useMemo(
+    () => bidItems.filter(b => (b.notes || '').includes(TRUE_COST_NEEDLE)),
+    [bidItems]
+  )
 
   const weekDays = useMemo(() => {
     const base = new Date()
@@ -145,8 +180,9 @@ export default function JobCosting() {
     const mon = new Date(base); mon.setDate(base.getDate() - dow)
     return [0, 1, 2, 3, 4].map(i => {
       const d = new Date(mon); d.setDate(mon.getDate() + i)
-      const iso = d.toISOString().slice(0, 10)
-      const dayTotal = costs.filter(c => c.date === iso).reduce((s, c) => s + num(c.qty) * num(c.unit_actual), 0)
+      const iso = fmtLocal(d)
+      const dayCosts = costs.filter(c => c.date === iso)
+      const dayTotal = dayCosts.reduce((s, c) => s + num(c.qty) * num(c.unit_actual), 0)
       const isToday = iso === today
       return {
         iso, isToday,
@@ -154,6 +190,7 @@ export default function JobCosting() {
         short: d.toLocaleDateString('en-CA', { weekday: 'short' }),
         day: d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }),
         total: dayTotal,
+        hasEntries: dayCosts.length > 0,
       }
     })
   }, [costs, weekOffset, today])
@@ -284,7 +321,8 @@ export default function JobCosting() {
     const name = project?.name || 'Job'
     const lines = []
     lines.push(`${name} — job update (${new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'short', day: 'numeric' })})`)
-    lines.push(`Bid: ${money(bidTotals.bill)} | Spent so far: ${money(totalActual)} | Job ${Math.round(overallPct)}% done`)
+    lines.push(`Bid: ${money(bidTotals.bill)} | Spent so far: ${money(totalActual)} | Safety buffer: ${money(bidTotals.reserve)} | Job ${Math.round(overallPct)}% done`)
+    if (missingTrueCost.length > 0) lines.push(`Note: ${missingTrueCost.length} lines still need true costs — figures are estimates.`)
     lines.push(totalActual === 0
       ? 'No spending logged yet.'
       : winning ? `✅ WINNING — on track to keep ${money(forecastProfit)}.` : `🚨 LOSING — on track to lose ${money(Math.abs(forecastProfit))}.`)
@@ -323,7 +361,7 @@ export default function JobCosting() {
       out.push([c.date, linked ? linked.item : '', c.description, c.qty, c.unit || '', c.unit_actual, num(c.qty) * num(c.unit_actual), c.hours || '', c.receipt_notes || ''].map(esc).join(','))
     })
     out.push('')
-    out.push(['Bid total', money(bidTotals.bill), 'Spent', money(totalActual), 'Job %', Math.round(overallPct), winning ? 'WINNING' : 'LOSING', money(forecastProfit)].map(esc).join(','))
+    out.push(['Bid total', money(bidTotals.bill), 'Bid cost', money(bidTotals.cost), 'Safety buffer', money(bidTotals.reserve), 'Left', money(bidTotals.margin), 'Spent', money(totalActual), 'Job %', Math.round(overallPct), winning ? 'WINNING' : 'LOSING', money(forecastProfit)].map(esc).join(','))
     return out.join('\n')
   }
 
@@ -438,6 +476,41 @@ export default function JobCosting() {
 
   if (loading) return <div style={S.page}><p style={{ padding: 24, fontSize: 18 }}>Loading…</p></div>
 
+  // ---------- 1a CLIENT VIEW: progress only, never dollars ----------
+  // Clients see how far along their job is and nothing financial. (UI-level
+  // redaction; API-level RLS scoping is Step 4 hardening.)
+  if (isClient) {
+    return (
+      <div style={S.page}>
+        <div style={S.topbar}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onClick={() => navigate('/')}>
+            <div style={S.gz}>GZ</div>
+            <div style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>{project?.name || 'Job'}</div>
+          </div>
+          <button onClick={() => navigate(`/project/${id}`)} style={S.topBtn}>← Back</button>
+        </div>
+        <div style={S.body}>
+          <div style={S.card}>
+            <div style={{ fontSize: 48 }}>🏗️</div>
+            <h2 style={{ fontSize: 24, margin: '8px 0' }}>{project?.name || 'Your project'} — how far along it is</h2>
+            <div style={{ fontSize: 52, fontWeight: 900, color: '#14202b' }}>{Math.round(overallPct)}%</div>
+            <div style={S.progressTrack}>
+              <div style={{ width: `${Math.min(100, overallPct)}%`, height: '100%', background: '#2b8a3e', borderRadius: 8 }} />
+            </div>
+            <p style={{ ...S.small, marginTop: 10 }}>Your crew's progress this week:</p>
+            {weekDays.map(d => (
+              <div key={d.iso} style={S.dayRow}>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>{d.label}{d.isToday ? ' (today)' : ''}</div>
+                <div style={{ fontSize: 22 }}>{d.hasEntries ? '✅ Crew on site' : '—'}</div>
+              </div>
+            ))}
+            <p style={S.small}>Questions about schedule? Call Peter.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const hasBid = bidItems.length > 0
   const winning = forecastProfit >= 0
 
@@ -476,29 +549,56 @@ export default function JobCosting() {
                 <div style={{ fontSize: 48 }}>👋</div>
                 <h2 style={{ fontSize: 24, margin: '8px 0' }}>Let's set up this job, Peter.</h2>
                 <p style={S.p}>Tell us what you bid and the crew logs what they spend. This screen will then tell you every day if you're winning or losing.</p>
-                <button onClick={seedTemplate} style={S.bigOrange}>Start with the normal job list →</button>
-                <p style={S.small}>You can change every number after. Takes about 2 minutes.</p>
+                {canManage ? (
+                  <>
+                    <button onClick={seedTemplate} style={S.bigOrange}>Start with the normal job list →</button>
+                    <p style={S.small}>You can change every number after. Takes about 2 minutes.</p>
+                  </>
+                ) : (
+                  <p style={S.p}>The bid isn't set up yet — ask Peter or Hanna to add it.</p>
+                )}
               </div>
             ) : (
               <>
-                {/* THE VERDICT — one glance, no reading required */}
-                <div style={{ ...S.verdict, background: winning ? '#2b8a3e' : '#c92a2a' }}>
-                  <div style={{ fontSize: 20, fontWeight: 600, opacity: 0.95 }}>
-                    {totalActual === 0 ? 'Job is set up — no spending logged yet' : winning ? '✅ YOU’RE WINNING' : '🚨 YOU’RE LOSING'}
+                {/* 1d TRUE-COST-MISSING: every figure below is an estimate until cleared */}
+                {missingTrueCost.length > 0 && (
+                  <div style={S.warnBanner}>
+                    ⚠️ {missingTrueCost.length} line{missingTrueCost.length === 1 ? '' : 's'} still {missingTrueCost.length === 1 ? 'needs its' : 'need their'} true cost — every dollar figure below is an estimate.
+                    {canManage ? ' Fix them on the "What we bid" tab.' : ' Ask Peter or Hanna to fill them in.'}
                   </div>
-                  {totalActual > 0 && (
-                    <div style={{ fontSize: 52, fontWeight: 900, lineHeight: 1.1 }}>
-                      {money(Math.abs(forecastProfit))}
+                )}
+                {/* THE VERDICT — one glance, no reading required.
+                    Never flash WINNING/LOSING on placeholder costs: estimates
+                    get a calm amber banner until true costs are in. */}
+                {(() => {
+                  const state = totalActual === 0 ? 'setup'
+                    : missingTrueCost.length > 0 ? 'estimate'
+                    : winning ? 'win' : 'lose'
+                  const bg = state === 'win' ? '#2b8a3e' : state === 'lose' ? '#c92a2a' : state === 'estimate' ? '#b26a00' : '#14202b'
+                  return (
+                    <div style={{ ...S.verdict, background: bg }}>
+                      <div style={{ fontSize: 20, fontWeight: 600, opacity: 0.95 }}>
+                        {state === 'setup' && 'Job is set up — no spending logged yet'}
+                        {state === 'estimate' && '⏳ ESTIMATE — true costs still missing'}
+                        {state === 'win' && '✅ YOU’RE WINNING'}
+                        {state === 'lose' && '🚨 YOU’RE LOSING'}
+                      </div>
+                      {totalActual > 0 && (
+                        <div style={{ fontSize: 52, fontWeight: 900, lineHeight: 1.1 }}>
+                          {state === 'estimate' ? '≈ ' : ''}{money(Math.abs(forecastProfit))}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 17, marginTop: 4 }}>
+                        {state === 'setup' && `You bid ${money(bidTotals.bill)}. No spending logged yet — you're good.`}
+                        {state === 'estimate' && (winning
+                          ? `Looks like keeping ≈ ${money(forecastProfit)} — firms up once true costs are in.`
+                          : `Looks like losing ≈ ${money(Math.abs(forecastProfit))} — firms up once true costs are in.`)}
+                        {state === 'win' && `On track to keep ${money(forecastProfit)} on this job.`}
+                        {state === 'lose' && `On track to lose ${money(Math.abs(forecastProfit))} unless something changes.`}
+                      </div>
                     </div>
-                  )}
-                  <div style={{ fontSize: 17, marginTop: 4 }}>
-                    {totalActual === 0
-                      ? `You bid ${money(bidTotals.bill)}. No spending logged yet — you're good.`
-                      : winning
-                        ? `On track to keep ${money(forecastProfit)} on this job.`
-                        : `On track to lose ${money(Math.abs(forecastProfit))} unless something changes.`}
-                  </div>
-                </div>
+                  )
+                })()}
 
                 {/* 3 numbers in plain English */}
                 <div style={S.threeCards}>
@@ -512,13 +612,19 @@ export default function JobCosting() {
                     <div style={S.bigSub}>{daysWithCosts} work day{daysWithCosts === 1 ? '' : 's'} logged</div>
                   </div>
                   <div style={S.bigCard}>
+                    <div style={S.bigLabel}>🛟 Safety buffer (just in case)</div>
+                    <div style={S.bigNum}>{money(bidTotals.reserve)}</div>
+                    <div style={S.bigSub}>Held back from the bid for surprises</div>
+                  </div>
+                  <div style={S.bigCard}>
                     <div style={S.bigLabel}>📊 Job is this far along</div>
                     <div style={S.bigNum}>{Math.round(overallPct)}%</div>
                     <div style={S.bigSub}>Earned {money(earned)} of {money(bidTotals.bill)}</div>
                   </div>
                 </div>
 
-                {/* Send / share this update — one tap, plain words */}
+                {/* Send / share this update — Peter & Hanna only */}
+                {canManage && (
                 <div style={S.card}>
                   <h3 style={S.h3}>📤 Send this update to someone</h3>
                   <p style={S.small}>Writes it up in plain words for you — Friday numbers, week totals, what's over and under. Then pick where it goes.</p>
@@ -531,6 +637,7 @@ export default function JobCosting() {
                   </div>
                   <pre style={S.summaryPreview}>{buildSummary()}</pre>
                 </div>
+                )}
 
                 {/* This week — plain list, not a grid of math */}
                 <div style={S.card}>
@@ -563,6 +670,7 @@ export default function JobCosting() {
                   const spent = actualByBid[String(b.id)] || 0
                   const diff = bidCost - spent
                   const hasSpend = spent > 0
+                  const needsTrueCost = (b.notes || '').includes(TRUE_COST_NEEDLE)
                   const status = !hasSpend
                     ? { text: 'Nothing spent yet', bg: '#f1f0eb', fg: '#6e6e66' }
                     : diff >= 0
@@ -573,6 +681,9 @@ export default function JobCosting() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
                         <div style={{ fontSize: 19, fontWeight: 800 }}>{catEmoji(b.category)} {b.item}</div>
                       </div>
+                      {needsTrueCost && (
+                        <div style={S.trueCostBadge}>⚠️ True cost needed — bid rate shown for now</div>
+                      )}
                       <div style={{ fontSize: 16, marginTop: 4 }}>
                         Bid <strong>{money(bidCost)}</strong> &nbsp;→&nbsp; Spent <strong>{money(spent)}</strong>
                       </div>
@@ -581,17 +692,21 @@ export default function JobCosting() {
                         <div style={{ width: `${Math.min(100, num(b.pct_complete))}%`, height: '100%', background: '#2b8a3e', borderRadius: 8 }} />
                       </div>
                       <div style={{ fontSize: 16, fontWeight: 700, margin: '6px 0' }}>{num(b.pct_complete)}% finished</div>
-                      <div style={S.pctBtns}>
-                        {PCT_STEPS.map(s => (
-                          <button
-                            key={s.value}
-                            onClick={() => setPct(b.id, s.value)}
-                            style={{ ...S.pctBtn, ...(num(b.pct_complete) === s.value ? S.pctBtnActive : {}) }}
-                          >
-                            {s.label}
-                          </button>
-                        ))}
-                      </div>
+                      {canManage ? (
+                        <div style={S.pctBtns}>
+                          {PCT_STEPS.map(s => (
+                            <button
+                              key={s.value}
+                              onClick={() => setPct(b.id, s.value)}
+                              style={{ ...S.pctBtn, ...(num(b.pct_complete) === s.value ? S.pctBtnActive : {}) }}
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p style={S.small}>Only Peter or Hanna can move this — tell them when it changes.</p>
+                      )}
                     </div>
                   )
                 })}
@@ -608,16 +723,21 @@ export default function JobCosting() {
             <div style={S.totalsBar}>
               <div>You bid <strong>{money(bidTotals.bill)}</strong></div>
               <div>It should cost <strong>{money(bidTotals.cost)}</strong></div>
-              <div style={{ color: bidTotals.margin >= 0 ? '#2b8a3e' : '#c92a2a' }}>Left for you: <strong>{money(bidTotals.margin)}</strong></div>
+              <div>Safety buffer held back <strong>{money(bidTotals.reserve)}</strong></div>
+              <div style={{ color: bidTotals.margin >= 0 ? '#2b8a3e' : '#c92a2a' }}>Left for you: <strong>{money(bidTotals.margin)}</strong>{missingTrueCost.length > 0 ? ' (estimate)' : ''}</div>
             </div>
 
-            {bidItems.length === 0 && (
+            {!canManage && (
+              <p style={S.p}>👀 You're looking at the bid — only Peter or Hanna can change it. Spot something wrong? Tell them.</p>
+            )}
+
+            {canManage && bidItems.length === 0 && (
               <button onClick={seedTemplate} style={S.bigOrange}>Start with the normal job list →</button>
             )}
 
-            {!showBidForm ? (
+            {canManage && !showBidForm ? (
               <button onClick={() => { setEditingBid(null); setShowBidForm(true) }} style={S.bigWhite}>＋ Add something we bid</button>
-            ) : (
+            ) : canManage ? (
               <form onSubmit={saveBid} style={S.stackForm}>
                 <label style={S.flabel}>What kind of thing is it?
                   <select value={bForm.category} onChange={e => setBForm({ ...bForm, category: e.target.value })} style={S.finput}>
@@ -657,19 +777,25 @@ export default function JobCosting() {
                 <button type="submit" style={S.bigOrange}>{editingBid ? 'Save changes ✓' : 'Add it to the bid ✓'}</button>
                 <button type="button" onClick={() => { setShowBidForm(false); setEditingBid(null) }} style={S.linkBtn}>Cancel</button>
               </form>
-            )}
+            ) : null}
 
             {bidItems.map(b => (
               <div key={b.id} style={S.bidRow}>
                 <div style={{ fontSize: 17, fontWeight: 800 }}>{catEmoji(b.category)} {b.item}</div>
+                {(b.notes || '').includes(TRUE_COST_NEEDLE) && (
+                  <div style={S.trueCostBadge}>⚠️ True cost needed</div>
+                )}
                 <div style={{ fontSize: 15, color: '#57544c', marginTop: 2 }}>
                   {b.qty} {b.unit} · costs us <strong>{money(num(b.qty) * num(b.unit_cost))}</strong> · we charge <strong>{money(num(b.qty) * num(b.unit_billable))}</strong>
+                  {num(b.contingency_pct) > 0 && <span> · holds back {b.contingency_pct}%</span>}
                 </div>
                 {b.notes ? <div style={{ fontSize: 14, color: '#8a8578', fontStyle: 'italic' }}>📝 {b.notes}</div> : null}
-                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                  <button onClick={() => startEdit(b)} style={S.navBtn}>✏️ Change</button>
-                  <button onClick={() => deleteBid(b.id)} style={S.navBtn}>🗑 Remove</button>
-                </div>
+                {canManage && (
+                  <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                    <button onClick={() => startEdit(b)} style={S.navBtn}>✏️ Change</button>
+                    <button onClick={() => deleteBid(b.id)} style={S.navBtn}>🗑 Remove</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -679,6 +805,10 @@ export default function JobCosting() {
         {tab === 'daily' && (
           <div style={S.card}>
             <div style={S.crewNote}>👷 <strong>Peter — skip this tab.</strong> Mike / Hanna: log every day Mon–Fri — guys & hours, fuel litres + price that day, dirt in/out, meals with receipts, subs.</div>
+            {/* 1e: this log is DOLLARS. Amounts of work (m³, loads, days) go on the project page log. */}
+            <button onClick={() => navigate(`/project/${id}`)} style={{ ...S.bigWhite, fontSize: 16 }}>
+              📏 Logging amounts of work (not dollars)? That's on the project page →
+            </button>
             <h2 style={{ fontSize: 24, margin: '12px 0 6px' }}>🧾 Log what got spent</h2>
             <p style={S.p}>Fill what you know. <strong>Either</strong> quantity + price each (e.g. 400 litres at $1.72) <strong>or</strong> just the total dollars off the receipt (e.g. $84 lunch). The Final screen updates by itself.</p>
             <button onClick={handleBlankSheet} style={S.bigWhite}>📥 Download blank daily sheet (for Excel / no-signal days)</button>
@@ -753,7 +883,7 @@ export default function JobCosting() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ fontSize: 19, fontWeight: 800 }}>{money(num(c.qty) * num(c.unit_actual))}</div>
-                  <button onClick={() => deleteCost(c.id)} style={S.navBtn}>🗑</button>
+                  {canManage && <button onClick={() => deleteCost(c.id)} style={S.navBtn}>🗑</button>}
                 </div>
               </div>
             ))}
@@ -768,7 +898,7 @@ export default function JobCosting() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ fontSize: 19, fontWeight: 800 }}>{money(num(c.qty) * num(c.unit_actual))}</div>
-                  <button onClick={() => deleteCost(c.id)} style={S.navBtn}>🗑</button>
+                  {canManage && <button onClick={() => deleteCost(c.id)} style={S.navBtn}>🗑</button>}
                 </div>
               </div>
             ))}
@@ -802,7 +932,7 @@ export default function JobCosting() {
                   <div style={{ fontSize: 16, fontWeight: 700 }}>📎 {f.name.replace(/^\d+_/, '')}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => downloadDoc(f)} style={S.navBtn}>👀 Open</button>
-                    <button onClick={() => deleteDoc(f)} style={S.navBtn}>🗑</button>
+                    {canManage && <button onClick={() => deleteDoc(f)} style={S.navBtn}>🗑</button>}
                   </div>
                 </div>
               ))
@@ -853,6 +983,8 @@ const S = {
   bidRow: { borderTop: '2px solid #f2f0ea', padding: '14px 4px' },
   spendRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, borderTop: '2px solid #f2f0ea', padding: '12px 4px' },
   crewNote: { background: '#fff4e6', border: '2px solid #f0a35e', borderRadius: 10, padding: '12px 16px', fontSize: 16, color: '#7c4a12' },
+  warnBanner: { background: '#fff4e6', border: '2px solid #e8590c', borderRadius: 12, padding: '14px 16px', fontSize: 17, fontWeight: 700, color: '#7c4a12', marginBottom: 14 },
+  trueCostBadge: { display: 'inline-block', fontSize: 14, fontWeight: 800, background: '#fff4e6', color: '#a8380d', border: '2px solid #f0a35e', padding: '4px 12px', borderRadius: 20, marginTop: 8 },
   shareBtns: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 8, marginBottom: 10 },
   shareBtn: { background: '#14202b', color: '#fff', border: 'none', borderRadius: 10, padding: '14px 10px', fontSize: 16, fontWeight: 800, cursor: 'pointer' },
   summaryPreview: { whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 14, background: '#fafaf8', border: '2px solid #e8e6df', borderRadius: 10, padding: '12px 14px', color: '#333', maxHeight: 260, overflowY: 'auto', margin: 0 },

@@ -13,22 +13,35 @@ function daysBetween(a, b) {
 
 const ALL_FALLBACK_FOLDERS = CONTRACTOR_FOLDER_PRESETS.flatMap(p => p.folders)
 
+// Local calendar date (YYYY-MM-DD). toISOString() runs in UTC and shifts the
+// day during Ontario evenings — never use it for day logic.
+function fmtLocal(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// Marker seeded on bid lines until true internal costs are entered.
+const TRUE_COST_NEEDLE = 'TRUE GZC COST STILL NEEDED'
+
 export default function ProductionLog() {
   const { id } = useParams()
   const { userRole } = useAuth()
   const navigate = useNavigate()
   const [project, setProject] = useState(null)
   const [entries, setEntries] = useState([])
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(fmtLocal(new Date()))
   const [quantity, setQuantity] = useState('')
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(null)
   const [savingStage, setSavingStage] = useState(false)
+  const [trueCostMissing, setTrueCostMissing] = useState(0)
 
   const canDelete = userRole === 'admin' || userRole === 'full'
 
   useEffect(() => {
-    Promise.all([fetchProject(), fetchEntries()]).then(() => setLoading(false))
+    Promise.all([fetchProject(), fetchEntries(), fetchTrueCostCount()]).then(() => setLoading(false))
   }, [id])
 
   async function fetchProject() {
@@ -43,6 +56,20 @@ export default function ProductionLog() {
       .eq('project_id', id)
       .order('date', { ascending: false })
     if (data) setEntries(data)
+  }
+
+  // 1g: how many bid lines still need true costs (drives the header badge).
+  async function fetchTrueCostCount() {
+    try {
+      const { data, error } = await supabase
+        .from('bid_items')
+        .select('id,notes')
+        .eq('project_id', id)
+      if (error) throw error
+      setTrueCostMissing((data || []).filter(b => (b.notes || '').includes(TRUE_COST_NEEDLE)).length)
+    } catch {
+      setTrueCostMissing(0)
+    }
   }
 
   async function handleAdd(e) {
@@ -101,7 +128,7 @@ export default function ProductionLog() {
     )
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = fmtLocal(new Date())
   const totalPlanned = project.total_planned || 0
   const startDate = project.start_date
   const targetDate = project.target_date
@@ -117,7 +144,7 @@ export default function ProductionLog() {
 
   const projectedDaysRemaining = actualDailyRate > 0 ? Math.ceil(remainingWork / actualDailyRate) : Infinity
   const projectedFinish = actualDailyRate > 0
-    ? new Date(Date.now() + projectedDaysRemaining * 86400000).toISOString().slice(0, 10)
+    ? fmtLocal(new Date(Date.now() + projectedDaysRemaining * 86400000))
     : '—'
 
   const daysAheadOrBehind = targetDate
@@ -237,6 +264,20 @@ export default function ProductionLog() {
                   </span>
                 )}
               </p>
+              {/* 1g MISSING-INFO BADGES: incomplete setup must shout, not whisper */}
+              {(!project.client || /tbd/i.test(project.client || '')) && (
+                <span style={{ display: 'inline-block', background: '#fff4e6', color: '#a8380d', border: '2px solid #f0a35e', fontSize: '0.85rem', fontWeight: 800, padding: '4px 12px', borderRadius: 20, marginTop: 8 }}>
+                  ⚠️ Client name missing — confirm with Peter
+                </span>
+              )}
+              {trueCostMissing > 0 && (
+                <button
+                  onClick={() => navigate(`/project/${id}/costs`)}
+                  style={{ display: 'inline-block', background: '#fff4e6', color: '#a8380d', border: '2px solid #f0a35e', fontSize: '0.85rem', fontWeight: 800, padding: '4px 12px', borderRadius: 20, marginTop: 8, marginLeft: 8, cursor: 'pointer' }}
+                >
+                  ⚠️ {trueCostMissing} bid line{trueCostMissing === 1 ? '' : 's'} need{trueCostMissing === 1 ? 's its' : ' their'} true cost — tap to fix →
+                </button>
+              )}
             </div>
 
             {/* Stage Selector */}
@@ -337,6 +378,20 @@ export default function ProductionLog() {
           <h2 style={{ fontSize: '1.1rem', color: '#14202b', margin: '0 0 1rem', fontWeight: 700 }}>
             📊 Daily Quantity Log
           </h2>
+          {/* 1e: this log is AMOUNTS of work (m³, loads, days). Dollars go in Bid vs Actual. */}
+          <button
+            onClick={() => navigate(`/project/${id}/costs`)}
+            style={{
+              width: '100%', background: '#e7f5ff', border: '2px solid #74c0fc',
+              borderRadius: 8, padding: '12px 16px', fontSize: '0.95rem', fontWeight: 700,
+              color: '#1864ab', cursor: 'pointer', marginBottom: '1.2rem'
+            }}
+          >
+            💰 Logging what something COST (fuel, hours, receipts)? That goes in Bid vs Actual →
+          </button>
+          <p style={{ fontSize: '0.82rem', color: '#8a8578', margin: '0 0 1rem' }}>
+            This log is for amounts of work only — e.g. loads out, days on site.
+          </p>
 
           <form onSubmit={handleAdd} style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '1.5rem' }}>
             <div>

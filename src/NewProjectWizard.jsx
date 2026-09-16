@@ -3,6 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from './supabase'
 import { useAuth } from './AuthContext'
 
+// Local calendar date (YYYY-MM-DD). toISOString() runs in UTC and shifts the
+// day during Ontario evenings — never use it for day logic.
+function fmtLocal(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 // Standard contractor folder presets tailored to GZCI civil & environmental remediation
 export const CONTRACTOR_FOLDER_PRESETS = [
   {
@@ -78,9 +87,9 @@ export default function NewProjectWizard() {
   const [projectStage, setProjectStage] = useState('Bidding / Quotes')
   const [unit, setUnit] = useState('units')
   const [totalPlanned, setTotalPlanned] = useState('')
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
+  const [startDate, setStartDate] = useState(fmtLocal(new Date()))
   const [targetDate, setTargetDate] = useState(
-    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    fmtLocal(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
   )
   const [assignedClientEmail, setAssignedClientEmail] = useState('')
 
@@ -136,8 +145,8 @@ export default function NewProjectWizard() {
     setErrorMessage(null)
 
     // Build safe defaults to strictly satisfy PostgreSQL NOT NULL constraints
-    const safeStartDate = startDate || new Date().toISOString().slice(0, 10)
-    const safeTargetDate = targetDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const safeStartDate = startDate || fmtLocal(new Date())
+    const safeTargetDate = targetDate || fmtLocal(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000))
     const safeTotalPlanned = totalPlanned && !isNaN(parseFloat(totalPlanned)) ? parseFloat(totalPlanned) : 0
 
     const validContacts = contacts.filter(c => c.name.trim() || c.email.trim())
