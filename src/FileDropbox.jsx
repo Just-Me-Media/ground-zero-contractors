@@ -36,12 +36,17 @@ function fileIcon(name) {
   return '📎'
 }
 
-// Browsers can only render images + PDFs inline. Spreadsheets/Word docs
-// silently do nothing in a preview frame, so offer Download instead.
-function canPreviewInline(name) {
+// Browsers can only render images + PDFs inline. Spreadsheets get an in-app
+// table preview (parsed locally — files never leave your system). Word docs
+// and video still use Download.
+function previewKind(name) {
   const ext = name.split('.').pop().toLowerCase()
-  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(ext)
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(ext)) return 'iframe'
+  if (['xls', 'xlsx', 'csv'].includes(ext)) return 'sheet'
+  return 'download'
 }
+
+const SHEET_MAX_ROWS = 500
 
 function getFolderIcon(folderName) {
   const f = folderName.toLowerCase()
@@ -75,6 +80,9 @@ export default function FileDropbox({ projectId, folders }) {
   const [error, setError] = useState(null)
   const [deletingKey, setDeletingKey] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [previewSheet, setPreviewSheet] = useState(null) // { name, sheets: [{ name, rows, truncated }] }
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [activeSheet, setActiveSheet] = useState(0)
   const [newFolderInput, setNewFolderInput] = useState('')
   const [showAddFolder, setShowAddFolder] = useState(false)
   const fileInputRef = useRef()
@@ -185,8 +193,41 @@ export default function FileDropbox({ projectId, folders }) {
 
   async function handlePreview(file) {
     const path = `${projectId}/${activeFolder}/${file.name}`
+    if (previewKind(file.name) === 'sheet') {
+      // In-app spreadsheet table: fetch bytes, parse locally, never uploads anywhere.
+      setPreviewUrl(null)
+      setPreviewSheet(null)
+      setPreviewLoading(file.name)
+      try {
+        const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 300)
+        if (!data?.signedUrl) throw new Error('link failed')
+        const buf = await (await fetch(data.signedUrl)).arrayBuffer()
+        const XLSX = await import('xlsx') // lazy chunk — keeps the main bundle lean
+        const wb = XLSX.read(buf, { type: 'array' })
+        const sheets = wb.SheetNames.slice(0, 12).map(sn => {
+          const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '', raw: false })
+          // Drop fully-empty trailing rows for a clean table
+          let end = aoa.length
+          while (end > 0 && aoa[end - 1].every(c => String(c).trim() === '')) end--
+          const rows = aoa.slice(0, end)
+          return { name: sn, rows: rows.slice(0, SHEET_MAX_ROWS), truncated: rows.length > SHEET_MAX_ROWS, totalRows: rows.length }
+        })
+        setPreviewSheet({ name: file.name.replace(/^\d+_/, ''), sheets })
+        setActiveSheet(0)
+      } catch (e) {
+        setError(`Could not preview "${file.name.replace(/^\d+_/, '')}" — use Download instead.`)
+      }
+      setPreviewLoading(false)
+      return
+    }
     const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 180)
-    if (data?.signedUrl) setPreviewUrl(data.signedUrl)
+    if (data?.signedUrl) { setPreviewSheet(null); setPreviewUrl(data.signedUrl) }
+  }
+
+  function closePreview() {
+    setPreviewUrl(null)
+    setPreviewSheet(null)
+    setActiveSheet(0)
   }
 
   return (
@@ -449,16 +490,17 @@ export default function FileDropbox({ projectId, folders }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: 6, borderTop: '1px solid #f0eee6', paddingTop: 8 }}>
-                  {canPreviewInline(file.name) && (
+                  {previewKind(file.name) !== 'download' && (
                     <button
                       onClick={() => handlePreview(file)}
+                      disabled={previewLoading === file.name}
                       style={{
                         flex: 1, background: '#fff', border: '1px solid #d8d5cb',
                         borderRadius: 4, padding: '5px 8px', fontSize: '0.75rem',
-                        fontWeight: 600, color: '#57544c', cursor: 'pointer'
+                        fontWeight: 600, color: '#57544c', cursor: previewLoading === file.name ? 'wait' : 'pointer'
                       }}
                     >
-                      Preview
+                      {previewLoading === file.name ? 'Opening…' : 'Preview'}
                     </button>
                   )}
                   <button
@@ -468,7 +510,7 @@ export default function FileDropbox({ projectId, folders }) {
                       borderRadius: 4, padding: '5px 8px', fontSize: '0.75rem',
                       fontWeight: 600, color: '#fff', cursor: 'pointer'
                     }}
-                    title={canPreviewInline(file.name) ? 'Download this file' : 'Spreadsheets and Word docs open via Download, not Preview'}
+                    title={previewKind(file.name) === 'download' ? 'Word docs and video open via Download' : 'Download this file'}
                   >
                     Download
                   </button>
@@ -492,10 +534,10 @@ export default function FileDropbox({ projectId, folders }) {
         )}
       </div>
 
-      {/* Preview Modal */}
-      {previewUrl && (
+      {/* Preview Modal — PDF/photo iframe, or in-app spreadsheet table */}
+      {(previewUrl || previewSheet) && (
         <div
-          onClick={() => setPreviewUrl(null)}
+          onClick={closePreview}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -510,11 +552,56 @@ export default function FileDropbox({ projectId, folders }) {
               display: 'flex', flexDirection: 'column'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontWeight: 600 }}>File Preview</span>
-              <button onClick={() => setPreviewUrl(null)} style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16 }}>✕</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', alignItems: 'center' }}>
+              <span style={{ fontWeight: 600 }}>📊 {previewSheet ? previewSheet.name : 'File Preview'}</span>
+              <button onClick={closePreview} style={{ cursor: 'pointer', border: 'none', background: 'none', fontSize: 16 }}>✕</button>
             </div>
-            <iframe src={previewUrl} style={{ width: '100%', height: '75vh', border: 'none' }} title="Preview" />
+            {previewSheet ? (
+              <>
+                {previewSheet.sheets.length > 1 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                    {previewSheet.sheets.map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActiveSheet(i)}
+                        style={{
+                          background: activeSheet === i ? '#14202b' : '#fafaf8',
+                          color: activeSheet === i ? '#fff' : '#57544c',
+                          border: '1px solid #d8d5cb', borderRadius: 16,
+                          padding: '4px 12px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        {s.name || `Sheet ${i + 1}`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div style={{ overflow: 'auto', maxHeight: '65vh', border: '1px solid #e8e6df', borderRadius: 6 }}>
+                  <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.8rem' }}>
+                    <tbody>
+                      {(previewSheet.sheets[activeSheet]?.rows || []).map((row, ri) => (
+                        <tr key={ri} style={{ background: ri === 0 ? '#f2f0ea' : ri % 2 ? '#fff' : '#fafaf8' }}>
+                          {row.map((cell, ci) => (
+                            ri === 0 ? (
+                              <th key={ci} style={{ border: '1px solid #e0dcd0', padding: '6px 10px', textAlign: 'left', fontWeight: 700, whiteSpace: 'nowrap' }}>{cell}</th>
+                            ) : (
+                              <td key={ci} style={{ border: '1px solid #f0eee6', padding: '5px 10px', whiteSpace: 'nowrap' }}>{cell}</td>
+                            )
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {previewSheet.sheets[activeSheet]?.truncated && (
+                  <p style={{ fontSize: '0.78rem', color: '#8a8578', margin: '6px 0 0' }}>
+                    Showing first {SHEET_MAX_ROWS} of {previewSheet.sheets[activeSheet].totalRows} rows — Download for the full file.
+                  </p>
+                )}
+              </>
+            ) : (
+              <iframe src={previewUrl} style={{ width: '100%', height: '75vh', border: 'none' }} title="Preview" />
+            )}
           </div>
         </div>
       )}
