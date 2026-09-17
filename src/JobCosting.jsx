@@ -750,6 +750,23 @@ export default function JobCosting() {
 
   const exportUnnamed = exportRange().filter(c => (num(c.hours) > 0 || num(c.hours_ot) > 0) && !(c.worker || '').trim()).length
 
+  // ---------- DAILY GAPS (Mike's quiet checklist) ----------
+  // Lines in day-to-day categories that are still live (< 100% done) are
+  // expected to have at least one entry for the selected day. No popups, no
+  // red ink — an amber strip that clears itself as he logs. This is the
+  // Tank-210 lesson encoded: missing days must be visible the same evening.
+  const DAILY_CATS = ['Labour', 'Fuel', 'Machines', 'Subs', 'Materials In', 'Materials Out / Disposal']
+  const dayGaps = useMemo(() => {
+    if (!dForm.date) return []
+    const covered = new Set(costs.filter(c => c.date === dForm.date).map(c => String(c.bid_item_id || '')))
+    return bidItems.filter(b =>
+      DAILY_CATS.includes(b.category) &&
+      num(b.qty) > 0 &&
+      num(b.pct_complete) < 100 &&
+      !covered.has(String(b.id))
+    )
+  }, [bidItems, costs, dForm.date])
+
   // ---------- BILLED MATH ----------
   const billedTotals = useMemo(() => {
     let invoiced = 0, held = 0, released = 0, paidAmt = 0
@@ -1238,6 +1255,30 @@ export default function JobCosting() {
             <p style={S.p}>Fill what you know. <strong>Either</strong> quantity + price each (e.g. 400 litres at $1.72) <strong>or</strong> just the total dollars off the receipt (e.g. $84 lunch). The Final screen updates by itself.</p>
             <button onClick={handleBlankSheet} style={S.bigWhite}>📥 Download blank daily sheet (for Excel / no-signal days)</button>
 
+            {/* Today's gaps: gentle amber strip, clears itself as lines get logged */}
+            {bidItems.length > 0 && (
+              dayGaps.length > 0 ? (
+                <div style={S.gapBox}>
+                  <div style={{ fontSize: 16, fontWeight: 800 }}>📝 Today still open: {dayGaps.length} line{dayGaps.length === 1 ? '' : 's'} with nothing logged {dForm.date ? `(${dayName(dForm.date)})` : ''}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                    {dayGaps.map(b => (
+                      <button
+                        key={b.id}
+                        onClick={() => { setDForm(f => ({ ...f, bid_item_id: String(b.id), unit: b.unit || f.unit, rate: String(b.unit_cost ?? '') })); setLastLogged(null) }}
+                        style={S.gapBtn}
+                        title={`Log ${b.item} for this day`}
+                      >
+                        {catEmoji(b.category)} {b.item} →
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#7c4a12', marginTop: 8 }}>Tap one to start its entry — it clears from this list once logged. Nothing here is urgent; it's just so Friday has no holes.</div>
+                </div>
+              ) : (
+                <div style={S.gapDone}>✓ Today's essentials are all logged{dForm.date ? ` — ${dayName(dForm.date)}` : ''}. Nice work.</div>
+              )
+            )}
+
             {/* Drag-drop import: Mike drops the filled sheet, checks the preview, confirms */}
             <div
               onDragOver={e => { e.preventDefault(); setDragOver(true) }}
@@ -1570,6 +1611,9 @@ const S = {
   loggedOk: { background: '#d3f9d6', border: '2px solid #2b8a3e', color: '#2b8a3e', borderRadius: 10, padding: '12px 16px', fontSize: 16, fontWeight: 700, marginBottom: 12 },
   detailBox: { background: '#fff', border: '2px dashed #d4d0c8', borderRadius: 10, padding: 14 },
   dropZone: { border: '2px dashed #c8c4b7', borderRadius: 10, padding: '16px', textAlign: 'center', marginTop: 10, marginBottom: 6 },
+  gapBox: { background: '#fff8e6', border: '2px solid #f0c35e', borderRadius: 10, padding: '14px 16px', marginTop: 10, marginBottom: 6 },
+  gapBtn: { background: '#fff', border: '2px solid #e0a83e', borderRadius: 20, padding: '10px 16px', fontSize: 15, fontWeight: 800, cursor: 'pointer', color: '#7c4a12' },
+  gapDone: { background: '#d3f9d6', border: '2px solid #2b8a3e', borderRadius: 10, padding: '12px 16px', fontSize: 16, fontWeight: 700, color: '#2b8a3e', marginTop: 10, marginBottom: 6 },
   importBox: { background: '#fff', border: '2px solid #14202b', borderRadius: 10, padding: 14, marginTop: 10, marginBottom: 12 },
   importRow: { border: '2px solid #e8e6df', borderRadius: 8, padding: '10px 12px', marginBottom: 8, display: 'flex', gap: 8 },
 }

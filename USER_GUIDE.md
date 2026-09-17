@@ -121,6 +121,7 @@ You own everything that happens on site, in the app that means: log it, keep the
 - **A. In the app (best when you have signal).** Log spending tab → pick the bid line (unit + usual rate fill in) → type how many/hours → Log ✓. 30 seconds a line.
 - **B. Drop the filled sheet (best from the laptop).** Tap **📥 Download blank daily sheet** once — it's pre-filled with every bid line. Fill it during the day in Excel, then drag-drop the `.csv` back onto the Log tab. You'll get a preview: green rows log as-is, red rows need a fix (bad date, unknown line name — pick the right bid line from the dropdown). Nothing enters the books until you hit confirm.
 - Either way: same-day entries, one line per cost event, receipt photo in **📂 Papers → Invoices & receipts** the same day.
+- Watch the **📝 "Today still open" strip** at the top of the Log tab — it lists bid lines with nothing logged for that day. Tap one to start its entry. When the strip turns green ("all logged"), the day is closed and Friday will have no holes. That's the whole Tank-210 lesson in one box.
 - No signal? The filled sheet *is* the backup — import it the next morning.
 
 **Keeping the job current:** the bid is yours — you wrote it. **✏️ Change** any line when scope shifts, move the **% finished** buttons as work completes. Mistake you can't undo? Hanna or Peter deletes; ask them.
